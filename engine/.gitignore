@@ -6,3 +6,4 @@ books.csv
 *.csv
 *.json
 *.txt
+*.sqlite
