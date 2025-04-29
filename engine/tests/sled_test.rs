@@ -1,7 +1,7 @@
-use versedb::sled::SledDatabase;
-use versedb::database::Database;
 use std::fs;
 use tempfile::tempdir;
+use versedb::database::Database;
+use versedb::sled::SledDatabase;
 
 #[cfg(all(test, not(target_arch = "wasm32")))]
 #[tokio::test]

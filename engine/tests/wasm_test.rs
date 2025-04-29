@@ -1,7 +1,7 @@
-use wasm_bindgen_test::*;
 use versedb::database::{Database, Result};
 #[cfg(all(target_arch = "wasm32", feature = "wasm"))]
 use versedb::idb::IdbDatabaseWrapper;
+use wasm_bindgen_test::*;
 
 wasm_bindgen_test_configure!(run_in_browser);
 
@@ -65,4 +65,4 @@ async fn test_idb_multiple_entries() -> Result<()> {
 
     db.close().await?;
     Ok(())
-} 
+}

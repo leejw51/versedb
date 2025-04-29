@@ -1,11 +1,11 @@
 #[cfg(not(target_arch = "wasm32"))]
 use chrono::{DateTime, Local, Utc};
 #[cfg(not(target_arch = "wasm32"))]
-use versedb::sled::SledDatabase;
+use std::error::Error;
 #[cfg(not(target_arch = "wasm32"))]
 use versedb::database::Database;
 #[cfg(not(target_arch = "wasm32"))]
-use std::error::Error;
+use versedb::sled::SledDatabase;
 
 #[cfg(not(target_arch = "wasm32"))]
 #[tokio::main]
@@ -18,7 +18,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
     for i in 1..=10 {
         let local_time: DateTime<Local> = Local::now();
         let utc_time: DateTime<Utc> = Utc::now();
-        
+
         let key = format!("record_{}", i);
         let value = format!(
             "Serial: {}, Local: {}, UTC: {}",
@@ -26,7 +26,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
             local_time.to_rfc3339(),
             utc_time.to_rfc3339()
         );
-        
+
         db.add(key.as_bytes(), value.as_bytes()).await?;
         println!("Added record {}: {}", i, value);
     }
@@ -36,7 +36,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
     let start_key = "record_".as_bytes();
     let end_key = "record_z".as_bytes(); // Using 'z' to include all records
     let records = db.select_range(start_key, end_key).await?;
-    
+
     for (key, value) in records {
         println!(
             "Key: {}, Value: {}",

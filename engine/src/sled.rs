@@ -1,6 +1,6 @@
 use crate::database::{Database, Result};
-use sled::Db;
 use async_trait::async_trait;
+use sled::Db;
 
 pub struct SledDatabase {
     db: Db,

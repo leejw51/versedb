@@ -1,11 +1,11 @@
 #[cfg(not(target_arch = "wasm32"))]
 use chrono::{DateTime, Local, Utc};
 #[cfg(not(target_arch = "wasm32"))]
-use versedb::sled::SledDatabase;
+use std::error::Error;
 #[cfg(not(target_arch = "wasm32"))]
 use versedb::database::Database;
 #[cfg(not(target_arch = "wasm32"))]
-use std::error::Error;
+use versedb::sled::SledDatabase;
 
 #[cfg(not(target_arch = "wasm32"))]
 #[tokio::main]
@@ -18,7 +18,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
     for i in 1..=10 {
         let local_time: DateTime<Local> = Local::now();
         let utc_time: DateTime<Utc> = Utc::now();
-        
+
         let key = format!("record_{}", i);
         let value = format!(
             "Serial: {}, Local: {}, UTC: {}",
@@ -26,7 +26,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
             local_time.to_rfc3339(),
             utc_time.to_rfc3339()
         );
-        
+
         db.add(key.as_bytes(), value.as_bytes()).await?;
         println!("Added record {}: {}", i, value);
     }
@@ -36,11 +36,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
     for i in 1..=10 {
         let key = format!("record_{}", i);
         if let Some(value) = db.select(key.as_bytes()).await? {
-            println!(
-                "Key: {}, Value: {}",
-                key,
-                String::from_utf8_lossy(&value)
-            );
+            println!("Key: {}, Value: {}", key, String::from_utf8_lossy(&value));
         }
     }
 

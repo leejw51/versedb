@@ -1,7 +1,7 @@
-use wasm_bindgen_test::*;
 use versedb::database::{Database, Result};
 #[cfg(all(target_arch = "wasm32", feature = "wasm"))]
 use versedb::idb::IdbDatabaseWrapper;
+use wasm_bindgen_test::*;
 
 wasm_bindgen_test_configure!(run_in_browser);
 
@@ -28,7 +28,7 @@ async fn test_idb_select_range() -> Result<()> {
     // Test selecting a range of keys
     let start_key = b"key2" as &[u8];
     let end_key = b"key4" as &[u8];
-    
+
     // Get all keys in range
     let results = db.select_range(start_key, end_key).await?;
 

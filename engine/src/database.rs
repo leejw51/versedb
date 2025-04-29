@@ -1,5 +1,5 @@
-use std::error::Error;
 use async_trait::async_trait;
+use std::error::Error;
 
 pub type Result<T> = std::result::Result<T, Box<dyn Error>>;
 
