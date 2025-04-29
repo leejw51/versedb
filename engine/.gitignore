@@ -1,3 +1,8 @@
 time_records_db/
 big_data_db/
 big_data_db_new/
+books_db.json
+books.csv
+*.csv
+*.json
+*.txt

@@ -1,7 +1,6 @@
 use crate::database::{Database, Result};
 use async_trait::async_trait;
 use js_sys::{Promise, Uint8Array};
-use serde_json::to_string;
 use std::error::Error;
 use std::fmt;
 use wasm_bindgen::JsCast;

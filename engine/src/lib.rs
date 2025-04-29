@@ -1,7 +1,12 @@
+pub mod csv;
 pub mod database;
 #[cfg(target_arch = "wasm32")]
 pub mod idb;
+pub mod json;
+#[cfg(not(target_arch = "wasm32"))]
 pub mod sled;
+#[cfg(not(target_arch = "wasm32"))]
+pub mod sqlite;
 
 pub use database::Database;
 
