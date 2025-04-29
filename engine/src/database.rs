@@ -5,7 +5,7 @@ pub type Result<T> = std::result::Result<T, Box<dyn Error>>;
 
 #[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
 #[cfg_attr(not(target_arch = "wasm32"), async_trait)]
-pub trait Database {
+pub trait Database: Send + Sync {
     /// Open a new database connection
     async fn open(path: &str) -> Result<Self>
     where
