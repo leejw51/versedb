@@ -78,4 +78,20 @@ impl Database for CsvDatabase {
         }
         Ok(result)
     }
+
+    async fn flush(&mut self) -> Result<()> {
+        let mut file = OpenOptions::new()
+            .write(true)
+            .create(true)
+            .truncate(true)
+            .open(&self.path)?;
+
+        for (key, value) in &self.data {
+            let key_str = String::from_utf8_lossy(key);
+            let value_str = String::from_utf8_lossy(value);
+            writeln!(file, "{},{}", key_str, value_str)?;
+        }
+
+        Ok(())
+    }
 }

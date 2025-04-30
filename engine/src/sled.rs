@@ -43,4 +43,9 @@ impl Database for SledDatabase {
         }
         Ok(result)
     }
+
+    async fn flush(&mut self) -> Result<()> {
+        self.db.flush()?;
+        Ok(())
+    }
 }

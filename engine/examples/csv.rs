@@ -39,6 +39,22 @@ async fn main() -> Result<(), Box<dyn Error>> {
         db.add(title.as_bytes(), author.as_bytes()).await?;
     }
 
+    // Flush the database to ensure all data is written to disk
+    db.flush().await?;
+    println!("\nInitial database contents:");
+    println!("Press Enter to continue...");
+    let mut input = String::new();
+    std::io::stdin().read_line(&mut input)?;
+    let all_entries = db.select_range(&[0], &[255]).await?;
+    for (title, author) in all_entries {
+        println!(
+            "{} by {}",
+            String::from_utf8_lossy(&title),
+            String::from_utf8_lossy(&author)
+        );
+    }
+    println!("\nDatabase flushed successfully.");
+
     // Retrieve a specific book
     if let Some(author) = db.select("The Great Gatsby".as_bytes()).await? {
         println!(

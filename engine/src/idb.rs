@@ -374,4 +374,9 @@ impl Database for IdbDatabaseWrapper {
 
         Ok(items)
     }
+
+    async fn flush(&mut self) -> Result<()> {
+        // IndexedDB automatically persists data, no explicit flush needed
+        Ok(())
+    }
 }

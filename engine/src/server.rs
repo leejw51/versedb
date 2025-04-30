@@ -122,6 +122,23 @@ impl<T: Database + Clone + Send + Sync + 'static> versedb::Server for VerseDbSer
         results.get().set_output(&format!("Hello, {}!", input_str));
         Promise::ok(())
     }
+
+    fn flush(
+        &mut self,
+        _params: versedb::FlushParams,
+        _results: versedb::FlushResults,
+    ) -> Promise<(), Error> {
+        let store = self.store.clone();
+        Promise::from_future(async move {
+            store
+                .lock()
+                .unwrap()
+                .flush()
+                .await
+                .map_err(|e| Error::failed(format!("{}", e)))?;
+            Ok(())
+        })
+    }
 }
 
 impl<T: Database + Clone + Send + Sync + 'static> versedb::Server for Arc<VerseDbServer<T>> {
@@ -168,6 +185,15 @@ impl<T: Database + Clone + Send + Sync + 'static> versedb::Server for Arc<VerseD
     ) -> Promise<(), Error> {
         let mut server = self.as_ref().clone();
         server.helloworld(params, results)
+    }
+
+    fn flush(
+        &mut self,
+        params: versedb::FlushParams,
+        results: versedb::FlushResults,
+    ) -> Promise<(), Error> {
+        let mut server = self.as_ref().clone();
+        server.flush(params, results)
     }
 }
 

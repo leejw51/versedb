@@ -21,4 +21,5 @@ interface Versedb {
     remove @2 (key :Data) -> ();
     selectRange @3 (range :KeyRange) -> (pairs :List(KeyValuePair));
     helloworld @4 (input :Text) -> (output :Text);
+    flush @5 () -> ();
 } 

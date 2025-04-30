@@ -23,6 +23,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
             // Add a key-value pair
             client.add(key, value).await?;
+            client.flush().await?;
             println!("Added key-value pair");
 
             // Select the value
@@ -34,6 +35,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             client.add(b"key1", b"value1").await?;
             client.add(b"key2", b"value2").await?;
             client.add(b"key3", b"value3").await?;
+            client.flush().await?;
             println!("\nAdded multiple key-value pairs for range test");
 
             // Test range selection

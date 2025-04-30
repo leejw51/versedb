@@ -84,4 +84,18 @@ impl Database for JsonDatabase {
 
         Ok(result)
     }
+
+    async fn flush(&mut self) -> Result<()> {
+        let mut json_map = Map::new();
+
+        for (key, value) in &self.data {
+            let key_str = String::from_utf8(key.clone())?;
+            json_map.insert(key_str, value.clone());
+        }
+
+        let json_string = serde_json::to_string_pretty(&json_map)?;
+        fs::write(&self.path, json_string)?;
+
+        Ok(())
+    }
 }

@@ -138,4 +138,10 @@ impl VerseDbClient {
         let response = request.send().promise.await?;
         Ok(response.get()?.get_output()?.to_str()?.to_string())
     }
+
+    pub async fn flush(&self) -> Result<(), ClientError> {
+        let request = self.client.flush_request();
+        request.send().promise.await?;
+        Ok(())
+    }
 }
