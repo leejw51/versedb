@@ -7,6 +7,7 @@ edition = "2024"
 crate-type = ["cdylib", "rlib"]
 
 [dependencies]
+capnp = "0.21"
 sled = { version = "0.34.7", optional = true }
 wasm-bindgen = { version = "0.2", optional = true }
 js-sys = { version = "0.3", optional = true }
@@ -53,3 +54,7 @@ tempfile = "3.10"
 
 [target.'cfg(not(target_arch = "wasm32"))'.dev-dependencies]
 tokio = { version = "1.36", features = ["full"] }
+
+
+[build-dependencies]
+capnpc = "0.21"

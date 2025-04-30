@@ -473,6 +473,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "capnpc"
+version = "0.21.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "5af589f7a7f3e6d920120b913345bd9a2fc65dfd76c5053a142852a5ea2e8609"
+dependencies = [
+ "capnp",
+]
+
+[[package]]
 name = "cargo-platform"
 version = "0.1.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -5617,6 +5626,8 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "async-trait",
+ "capnp",
+ "capnpc",
  "chrono",
  "getrandom 0.2.16",
  "js-sys",

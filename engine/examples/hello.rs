@@ -3,6 +3,7 @@ use std::error::Error;
 use versedb::csv::CsvDatabase;
 use versedb::database::Database;
 
+#[cfg(not(target_arch = "wasm32"))]
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error>> {
     // Create a new CSV database
@@ -51,4 +52,10 @@ async fn main() -> Result<(), Box<dyn Error>> {
     db.close().await?;
 
     Ok(())
+}
+
+
+#[cfg(target_arch = "wasm32")]
+fn main() {
+    // Empty main function for wasm32 target
 }
