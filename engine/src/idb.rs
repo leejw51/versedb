@@ -12,11 +12,11 @@ use web_sys::{
 };
 
 #[derive(Debug)]
-struct JsError(DomException);
+struct JsError(String);
 
 impl fmt::Display for JsError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "IndexedDB error: {:?}", self.0)
+        write!(f, "IndexedDB error: {}", self.0)
     }
 }
 
@@ -24,7 +24,17 @@ impl Error for JsError {}
 
 impl From<DomException> for JsError {
     fn from(value: DomException) -> Self {
-        JsError(value)
+        JsError(value.message())
+    }
+}
+
+impl From<JsValue> for JsError {
+    fn from(value: JsValue) -> Self {
+        let error_msg = match value.dyn_into::<DomException>() {
+            Ok(e) => e.message(),
+            Err(e) => format!("{:?}", e)
+        };
+        JsError(error_msg)
     }
 }
 
@@ -41,16 +51,16 @@ unsafe impl Sync for IdbDatabaseWrapper {}
 #[cfg_attr(not(target_arch = "wasm32"), async_trait)]
 impl Database for IdbDatabaseWrapper {
     async fn open(path: &str) -> Result<Self> {
-        let window =
-            web_sys::window().ok_or_else(|| JsError::from(DomException::new().unwrap()))?;
+        let window = web_sys::window()
+            .ok_or_else(|| anyhow::anyhow!("Failed to get window"))?;
         let factory: IdbFactory = window
             .indexed_db()
-            .map_err(|_| JsError::from(DomException::new().unwrap()))?
-            .expect("Failed to get IndexedDB");
+            .map_err(|e| JsError::from(e))?
+            .ok_or_else(|| anyhow::anyhow!("Failed to get IndexedDB"))?;
 
         let open_request: IdbOpenDbRequest = factory
             .open_with_u32(path, 1)
-            .map_err(|_| JsError::from(DomException::new().unwrap()))?;
+            .map_err(|e| JsError::from(e))?;
 
         // Create store if it doesn't exist
         let callback = Closure::<dyn FnMut(web_sys::Event)>::new(move |event: web_sys::Event| {
@@ -106,9 +116,9 @@ impl Database for IdbDatabaseWrapper {
 
         let db = wasm_bindgen_futures::JsFuture::from(promise)
             .await
-            .map_err(|_| JsError::from(DomException::new().unwrap()))?
+            .map_err(|e| JsError::from(e))?
             .dyn_into::<IdbDatabase>()
-            .map_err(|_| JsError::from(DomException::new().unwrap()))?;
+            .map_err(|e| JsError::from(e))?;
 
         Ok(IdbDatabaseWrapper { db })
     }
@@ -125,17 +135,17 @@ impl Database for IdbDatabaseWrapper {
                 &js_sys::Array::of1(&JsValue::from_str("store")),
                 IdbTransactionMode::Readwrite,
             )
-            .map_err(|_| JsError::from(DomException::new().unwrap()))?;
+            .map_err(|e| JsError::from(e))?;
 
         let store = tx
             .object_store("store")
-            .map_err(|_| JsError::from(DomException::new().unwrap()))?;
+            .map_err(|e| JsError::from(e))?;
 
         let key_js = Uint8Array::from(key);
         let value_js = Uint8Array::from(value);
         let request: IdbRequest = store
             .put_with_key(&value_js.into(), &key_js.into())
-            .map_err(|_| JsError::from(DomException::new().unwrap()))?;
+            .map_err(|e| JsError::from(e))?;
 
         let promise = Promise::new(&mut |resolve, _reject| {
             let on_success = Closure::<dyn FnMut(web_sys::Event)>::new(move |_| {
@@ -161,7 +171,7 @@ impl Database for IdbDatabaseWrapper {
 
         wasm_bindgen_futures::JsFuture::from(promise)
             .await
-            .map_err(|_| JsError::from(DomException::new().unwrap()))?;
+            .map_err(|e| JsError::from(e))?;
 
         Ok(())
     }
@@ -173,16 +183,16 @@ impl Database for IdbDatabaseWrapper {
                 &js_sys::Array::of1(&JsValue::from_str("store")),
                 IdbTransactionMode::Readonly,
             )
-            .map_err(|_| JsError::from(DomException::new().unwrap()))?;
+            .map_err(|e| JsError::from(e))?;
 
         let store = tx
             .object_store("store")
-            .map_err(|_| JsError::from(DomException::new().unwrap()))?;
+            .map_err(|e| JsError::from(e))?;
 
         let key_js = Uint8Array::from(key);
         let request: IdbRequest = store
             .get(&key_js.into())
-            .map_err(|_| JsError::from(DomException::new().unwrap()))?;
+            .map_err(|e| JsError::from(e))?;
 
         let promise = Promise::new(&mut |resolve, _reject| {
             let request_success = request.clone();
@@ -209,7 +219,7 @@ impl Database for IdbDatabaseWrapper {
 
         let result = wasm_bindgen_futures::JsFuture::from(promise)
             .await
-            .map_err(|_| JsError::from(DomException::new().unwrap()))?;
+            .map_err(|e| JsError::from(e))?;
 
         if result.is_undefined() {
             Ok(None)
@@ -228,16 +238,16 @@ impl Database for IdbDatabaseWrapper {
                 &js_sys::Array::of1(&JsValue::from_str("store")),
                 IdbTransactionMode::Readwrite,
             )
-            .map_err(|_| JsError::from(DomException::new().unwrap()))?;
+            .map_err(|e| JsError::from(e))?;
 
         let store = tx
             .object_store("store")
-            .map_err(|_| JsError::from(DomException::new().unwrap()))?;
+            .map_err(|e| JsError::from(e))?;
 
         let key_js = Uint8Array::from(key);
         let request: IdbRequest = store
             .delete(&key_js.into())
-            .map_err(|_| JsError::from(DomException::new().unwrap()))?;
+            .map_err(|e| JsError::from(e))?;
 
         let promise = Promise::new(&mut |resolve, _reject| {
             let on_success = Closure::<dyn FnMut(web_sys::Event)>::new(move |_| {
@@ -263,7 +273,7 @@ impl Database for IdbDatabaseWrapper {
 
         wasm_bindgen_futures::JsFuture::from(promise)
             .await
-            .map_err(|_| JsError::from(DomException::new().unwrap()))?;
+            .map_err(|e| JsError::from(e))?;
 
         Ok(())
     }
@@ -275,22 +285,22 @@ impl Database for IdbDatabaseWrapper {
                 &js_sys::Array::of1(&JsValue::from_str("store")),
                 IdbTransactionMode::Readonly,
             )
-            .map_err(|_| JsError::from(DomException::new().unwrap()))?;
+            .map_err(|e| JsError::from(e))?;
 
         let store = tx
             .object_store("store")
-            .map_err(|_| JsError::from(DomException::new().unwrap()))?;
+            .map_err(|e| JsError::from(e))?;
 
         // Create a key range
         let start_key = Uint8Array::from(start);
         let end_key = Uint8Array::from(end);
         let key_range = web_sys::IdbKeyRange::bound(&start_key.into(), &end_key.into())
-            .map_err(|_| JsError::from(DomException::new().unwrap()))?;
+            .map_err(|e| JsError::from(e))?;
 
         // Get all entries within the range
         let request: IdbRequest = store
             .get_all_with_key(&key_range.clone().into())
-            .map_err(|_| JsError::from(DomException::new().unwrap()))?;
+            .map_err(|e| JsError::from(e))?;
 
         let promise = Promise::new(&mut |resolve, _reject| {
             let request_success = request.clone();
@@ -317,7 +327,7 @@ impl Database for IdbDatabaseWrapper {
 
         let result = wasm_bindgen_futures::JsFuture::from(promise)
             .await
-            .map_err(|_| JsError::from(DomException::new().unwrap()))?;
+            .map_err(|e| JsError::from(e))?;
 
         let array = js_sys::Array::from(&result);
         let mut items = Vec::new();
@@ -325,7 +335,7 @@ impl Database for IdbDatabaseWrapper {
         // Get all keys within the range
         let request: IdbRequest = store
             .get_all_keys_with_key(&key_range.into())
-            .map_err(|_| JsError::from(DomException::new().unwrap()))?;
+            .map_err(|e| JsError::from(e))?;
 
         let promise = Promise::new(&mut |resolve, _reject| {
             let request_success = request.clone();
@@ -352,7 +362,7 @@ impl Database for IdbDatabaseWrapper {
 
         let keys_result = wasm_bindgen_futures::JsFuture::from(promise)
             .await
-            .map_err(|_| JsError::from(DomException::new().unwrap()))?;
+            .map_err(|e| JsError::from(e))?;
 
         let keys_array = js_sys::Array::from(&keys_result);
 

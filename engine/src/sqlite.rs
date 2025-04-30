@@ -54,7 +54,7 @@ impl Database for SqliteDatabase {
         match result {
             Ok(value) => Ok(Some(value)),
             Err(rusqlite::Error::QueryReturnedNoRows) => Ok(None),
-            Err(e) => Err(Box::new(e)),
+            Err(e) => Err(e.into()),
         }
     }
 
