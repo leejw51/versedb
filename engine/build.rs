@@ -1,8 +1,5 @@
 fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let proto_files = [
-        "proto/versedb.capnp",
-        
-    ];
+    let proto_files = ["proto/versedb.capnp"];
 
     // Generate files in the generated directory
     for file in &proto_files {

@@ -54,7 +54,6 @@ async fn main() -> Result<(), Box<dyn Error>> {
     Ok(())
 }
 
-
 #[cfg(target_arch = "wasm32")]
 fn main() {
     // Empty main function for wasm32 target

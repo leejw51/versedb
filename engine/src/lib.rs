@@ -10,6 +10,10 @@ pub mod sqlite;
 
 pub use database::Database;
 
+pub mod versedb_capnp {
+    include!("../generated/proto/versedb_capnp.rs");
+}
+
 pub fn add(left: u64, right: u64) -> u64 {
     left + right
 }
