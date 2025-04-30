@@ -1,12 +1,12 @@
-use capnp::capability::Promise;
-use capnp::Error;
 use crate::versedb_capnp::versedb;
-use capnp_rpc::{rpc_twoparty_capnp, twoparty, RpcSystem};
-use std::net::ToSocketAddrs;
+use capnp::Error;
+use capnp::capability::Promise;
+use capnp_rpc::{RpcSystem, rpc_twoparty_capnp, twoparty};
 use futures::AsyncReadExt;
 use futures::AsyncWriteExt;
-use tokio_util::compat::TokioAsyncReadCompatExt;
 use std::fmt;
+use std::net::ToSocketAddrs;
+use tokio_util::compat::TokioAsyncReadCompatExt;
 
 #[derive(Debug)]
 pub enum ClientError {
@@ -107,7 +107,11 @@ impl VerseDbClient {
         Ok(())
     }
 
-    pub async fn select_range(&self, start: &[u8], end: &[u8]) -> Result<Vec<(Vec<u8>, Vec<u8>)>, ClientError> {
+    pub async fn select_range(
+        &self,
+        start: &[u8],
+        end: &[u8],
+    ) -> Result<Vec<(Vec<u8>, Vec<u8>)>, ClientError> {
         let mut request = self.client.select_range_request();
         {
             let mut params = request.get();

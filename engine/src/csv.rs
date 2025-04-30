@@ -6,6 +6,7 @@ use std::fs::{File, OpenOptions};
 use std::io::{BufRead, BufReader, Write};
 use std::path::Path;
 
+#[derive(Clone)]
 pub struct CsvDatabase {
     path: String,
     data: HashMap<Vec<u8>, Vec<u8>>,

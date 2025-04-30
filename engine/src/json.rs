@@ -6,6 +6,7 @@ use std::error::Error;
 use std::fs;
 use std::path::Path;
 
+#[derive(Clone)]
 pub struct JsonDatabase {
     data: BTreeMap<Vec<u8>, Value>,
     path: String,

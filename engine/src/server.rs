@@ -1,26 +1,27 @@
-use capnp::capability::{Promise, Client, FromServer};
-use capnp::Error;
-use std::collections::BTreeMap;
-use std::sync::{Arc, Mutex};
+use crate::database::{Database, Result as DbResult};
 use crate::versedb_capnp::versedb;
-use capnp_rpc::{rpc_twoparty_capnp, twoparty, RpcSystem};
+use capnp::Error;
+use capnp::capability::{Client, FromServer, Promise};
+use capnp_rpc::{RpcSystem, rpc_twoparty_capnp, twoparty};
 use futures::AsyncReadExt;
+use std::collections::BTreeMap;
 use std::net::ToSocketAddrs;
+use std::sync::{Arc, Mutex};
 
 #[derive(Clone)]
-pub struct VerseDbServer {
-    store: Arc<Mutex<BTreeMap<Vec<u8>, Vec<u8>>>>,
+pub struct VerseDbServer<T: Database + Clone + Send + Sync + 'static> {
+    store: Arc<Mutex<T>>,
 }
 
-impl VerseDbServer {
-    pub fn new() -> Self {
+impl<T: Database + Clone + Send + Sync + 'static> VerseDbServer<T> {
+    pub fn new(store: T) -> Self {
         Self {
-            store: Arc::new(Mutex::new(BTreeMap::new())),
+            store: Arc::new(Mutex::new(store)),
         }
     }
 }
 
-impl versedb::Server for VerseDbServer {
+impl<T: Database + Clone + Send + Sync + 'static> versedb::Server for VerseDbServer<T> {
     fn add(
         &mut self,
         params: versedb::AddParams,
@@ -28,9 +29,17 @@ impl versedb::Server for VerseDbServer {
     ) -> Promise<(), Error> {
         let key = params.get().unwrap().get_key().unwrap().to_vec();
         let value = params.get().unwrap().get_value().unwrap().to_vec();
-        
-        self.store.lock().unwrap().insert(key, value);
-        Promise::ok(())
+
+        let store = self.store.clone();
+        Promise::from_future(async move {
+            store
+                .lock()
+                .unwrap()
+                .add(&key, &value)
+                .await
+                .map_err(|e| Error::failed(format!("{}", e)))?;
+            Ok(())
+        })
     }
 
     fn select(
@@ -39,11 +48,20 @@ impl versedb::Server for VerseDbServer {
         mut results: versedb::SelectResults,
     ) -> Promise<(), Error> {
         let key = params.get().unwrap().get_key().unwrap().to_vec();
-        
-        if let Some(value) = self.store.lock().unwrap().get(&key) {
-            results.get().set_value(value);
-        }
-        Promise::ok(())
+        let store = self.store.clone();
+
+        Promise::from_future(async move {
+            if let Some(value) = store
+                .lock()
+                .unwrap()
+                .select(&key)
+                .await
+                .map_err(|e| Error::failed(format!("{}", e)))?
+            {
+                results.get().set_value(&value);
+            }
+            Ok(())
+        })
     }
 
     fn remove(
@@ -52,9 +70,17 @@ impl versedb::Server for VerseDbServer {
         _results: versedb::RemoveResults,
     ) -> Promise<(), Error> {
         let key = params.get().unwrap().get_key().unwrap().to_vec();
-        
-        self.store.lock().unwrap().remove(&key);
-        Promise::ok(())
+        let store = self.store.clone();
+
+        Promise::from_future(async move {
+            store
+                .lock()
+                .unwrap()
+                .remove(&key)
+                .await
+                .map_err(|e| Error::failed(format!("{}", e)))?;
+            Ok(())
+        })
     }
 
     fn select_range(
@@ -65,18 +91,25 @@ impl versedb::Server for VerseDbServer {
         let range = params.get().unwrap().get_range().unwrap();
         let start = range.get_start().unwrap().to_vec();
         let end = range.get_end().unwrap().to_vec();
-        
-        let store = self.store.lock().unwrap();
-        let pairs: Vec<_> = store.range(start..end).map(|(k, v)| (k.clone(), v.clone())).collect();
-        let mut pairs_builder = results.get().init_pairs(pairs.len() as u32);
-        
-        for (i, (key, value)) in pairs.iter().enumerate() {
-            let mut pair = pairs_builder.reborrow().get(i as u32);
-            pair.set_key(key);
-            pair.set_value(value);
-        }
-        
-        Promise::ok(())
+        let store = self.store.clone();
+
+        Promise::from_future(async move {
+            let pairs = store
+                .lock()
+                .unwrap()
+                .select_range(&start, &end)
+                .await
+                .map_err(|e| Error::failed(format!("{}", e)))?;
+            let mut pairs_builder = results.get().init_pairs(pairs.len() as u32);
+
+            for (i, (key, value)) in pairs.iter().enumerate() {
+                let mut pair = pairs_builder.reborrow().get(i as u32);
+                pair.set_key(key);
+                pair.set_value(value);
+            }
+
+            Ok(())
+        })
     }
 
     fn helloworld(
@@ -91,7 +124,7 @@ impl versedb::Server for VerseDbServer {
     }
 }
 
-impl versedb::Server for Arc<VerseDbServer> {
+impl<T: Database + Clone + Send + Sync + 'static> versedb::Server for Arc<VerseDbServer<T>> {
     fn add(
         &mut self,
         params: versedb::AddParams,
@@ -138,7 +171,10 @@ impl versedb::Server for Arc<VerseDbServer> {
     }
 }
 
-pub async fn run_server(addr: &str) -> Result<(), Box<dyn std::error::Error>> {
+pub async fn run_server<T: Database + Clone + Send + Sync + 'static>(
+    addr: &str,
+    store: T,
+) -> Result<(), Box<dyn std::error::Error>> {
     let addr = addr
         .to_socket_addrs()?
         .next()
@@ -147,7 +183,7 @@ pub async fn run_server(addr: &str) -> Result<(), Box<dyn std::error::Error>> {
     tokio::task::LocalSet::new()
         .run_until(async move {
             let listener = tokio::net::TcpListener::bind(&addr).await?;
-            let versedb_server = Arc::new(VerseDbServer::new());
+            let versedb_server = Arc::new(VerseDbServer::new(store));
             let versedb_client: versedb::Client = capnp_rpc::new_client(versedb_server);
 
             println!("VerseDB server listening on {}", addr);

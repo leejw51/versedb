@@ -28,7 +28,7 @@ impl From<DomException> for JsError {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct IdbDatabaseWrapper {
     db: IdbDatabase,
 }

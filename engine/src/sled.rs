@@ -2,6 +2,7 @@ use crate::database::{Database, Result};
 use async_trait::async_trait;
 use sled::Db;
 
+#[derive(Clone)]
 pub struct SledDatabase {
     db: Db,
 }
