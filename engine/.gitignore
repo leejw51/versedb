@@ -1,6 +1,7 @@
 time_records_db/
 big_data_db/
 big_data_db_new/
+time_records_db/
 books_db.json
 books.csv
 *.csv
