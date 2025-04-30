@@ -10,13 +10,17 @@ async def main():
     parser = argparse.ArgumentParser(
         usage="Connects to the Versedb server at the given address/port"
     )
-    parser.add_argument("address", help="ADDRESS:PORT")
+    parser.add_argument(
+        "--host", default="localhost", help="Host address (default: localhost)"
+    )
+    parser.add_argument(
+        "--port", type=int, default=8000, help="Port number (default: 8000)"
+    )
     args = parser.parse_args()
 
-    host, port = args.address.split(":")
-    print(f"🔌 Connecting to server at {host}:{port}...")
+    print(f"🔌 Connecting to server at {args.host}:{args.port}...")
 
-    stream = await capnp.AsyncIoStream.create_connection(host, int(port))
+    stream = await capnp.AsyncIoStream.create_connection(args.host, args.port)
     client = capnp.TwoPartyClient(stream)
     versedb = client.bootstrap().cast_as(versedb_capnp.Versedb)
 

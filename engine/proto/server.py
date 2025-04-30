@@ -68,16 +68,22 @@ def parse_args():
     parser = argparse.ArgumentParser(
         usage="Runs the Versedb server at the given address/port"
     )
-    parser.add_argument("address", help="ADDRESS:PORT")
+    parser.add_argument(
+        "--host", default="localhost", help="Host address (default: localhost)"
+    )
+    parser.add_argument(
+        "--port", type=int, default=8000, help="Port number (default: 8000)"
+    )
     return parser.parse_args()
 
 
 async def main():
     args = parse_args()
-    host, port = args.address.split(":")
-    server = await capnp.AsyncIoStream.create_server(new_connection, host, port)
-    print(f"🚀 Server running at {host}:{port}")
+    print(f"🚀 Server running at {args.host}:{args.port}")
     print("⭐ Ready to accept connections...")
+    server = await capnp.AsyncIoStream.create_server(
+        new_connection, args.host, args.port
+    )
     async with server:
         await server.serve_forever()
 
