@@ -129,6 +129,28 @@ impl VerseDbClient {
         Ok(result)
     }
 
+    pub async fn remove_range(
+        &self,
+        start: &[u8],
+        end: &[u8],
+    ) -> Result<Vec<(Vec<u8>, Vec<u8>)>, ClientError> {
+        let mut request = self.client.remove_range_request();
+        {
+            let mut params = request.get();
+            let mut range = params.init_range();
+            range.set_start(start);
+            range.set_end(end);
+        }
+        let response = request.send().promise.await?;
+        let pairs = response.get()?.get_pairs()?;
+        let mut result = Vec::new();
+        for i in 0..pairs.len() {
+            let pair = pairs.get(i);
+            result.push((pair.get_key()?.to_vec(), pair.get_value()?.to_vec()));
+        }
+        Ok(result)
+    }
+
     pub async fn helloworld(&self, input: &str) -> Result<String, ClientError> {
         let mut request = self.client.helloworld_request();
         {

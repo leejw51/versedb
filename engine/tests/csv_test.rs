@@ -113,14 +113,18 @@ async fn test_csv_database_flush() {
 
     // Test open and add
     let mut db = CsvDatabase::open(path).await.unwrap();
-    
+
     // Add some data
-    db.add("key1".as_bytes(), "value1".as_bytes()).await.unwrap();
-    db.add("key2".as_bytes(), "value2".as_bytes()).await.unwrap();
-    
+    db.add("key1".as_bytes(), "value1".as_bytes())
+        .await
+        .unwrap();
+    db.add("key2".as_bytes(), "value2".as_bytes())
+        .await
+        .unwrap();
+
     // Explicitly flush the data
     db.flush().await.unwrap();
-    
+
     // Verify data is persisted
     assert_eq!(
         db.select("key1".as_bytes()).await.unwrap(),
@@ -130,7 +134,7 @@ async fn test_csv_database_flush() {
         db.select("key2".as_bytes()).await.unwrap(),
         Some("value2".as_bytes().to_vec())
     );
-    
+
     // Clean up
     db.close().await.unwrap();
     fs::remove_file(path).unwrap();

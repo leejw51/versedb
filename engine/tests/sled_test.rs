@@ -126,7 +126,7 @@ mod sled_tests {
         }
 
         // Test different range scenarios
-        
+
         // 1. Test middle range (should include b1 and b2)
         let range1 = db.select_range(b"b1", b"c1").await.unwrap();
         assert_eq!(range1.len(), 2);
@@ -167,14 +167,8 @@ mod sled_tests {
             db.flush().await.unwrap();
 
             // Verify data is still accessible
-            assert_eq!(
-                db.select(b"key1").await.unwrap(),
-                Some(b"value1".to_vec())
-            );
-            assert_eq!(
-                db.select(b"key2").await.unwrap(),
-                Some(b"value2".to_vec())
-            );
+            assert_eq!(db.select(b"key1").await.unwrap(), Some(b"value1".to_vec()));
+            assert_eq!(db.select(b"key2").await.unwrap(), Some(b"value2".to_vec()));
 
             // Properly close the database
             db.close().await.unwrap();
@@ -186,15 +180,9 @@ mod sled_tests {
         // Reopen in a new block
         {
             let mut db = SledDatabase::open(db_path).await.unwrap();
-            
-            assert_eq!(
-                db.select(b"key1").await.unwrap(),
-                Some(b"value1".to_vec())
-            );
-            assert_eq!(
-                db.select(b"key2").await.unwrap(),
-                Some(b"value2".to_vec())
-            );
+
+            assert_eq!(db.select(b"key1").await.unwrap(), Some(b"value1".to_vec()));
+            assert_eq!(db.select(b"key2").await.unwrap(), Some(b"value2".to_vec()));
 
             // Properly close the database
             db.close().await.unwrap();

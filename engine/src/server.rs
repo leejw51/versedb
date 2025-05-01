@@ -112,6 +112,35 @@ impl<T: Database + Clone + Send + Sync + 'static> versedb::Server for VerseDbSer
         })
     }
 
+    fn remove_range(
+        &mut self,
+        params: versedb::RemoveRangeParams,
+        mut results: versedb::RemoveRangeResults,
+    ) -> Promise<(), Error> {
+        let range = params.get().unwrap().get_range().unwrap();
+        let start = range.get_start().unwrap().to_vec();
+        let end = range.get_end().unwrap().to_vec();
+        let store = self.store.clone();
+
+        Promise::from_future(async move {
+            let pairs = store
+                .lock()
+                .unwrap()
+                .remove_range(&start, &end)
+                .await
+                .map_err(|e| Error::failed(format!("{}", e)))?;
+            let mut pairs_builder = results.get().init_pairs(pairs.len() as u32);
+
+            for (i, (key, value)) in pairs.iter().enumerate() {
+                let mut pair = pairs_builder.reborrow().get(i as u32);
+                pair.set_key(key);
+                pair.set_value(value);
+            }
+
+            Ok(())
+        })
+    }
+
     fn helloworld(
         &mut self,
         params: versedb::HelloworldParams,
@@ -176,6 +205,15 @@ impl<T: Database + Clone + Send + Sync + 'static> versedb::Server for Arc<VerseD
     ) -> Promise<(), Error> {
         let mut server = self.as_ref().clone();
         server.select_range(params, results)
+    }
+
+    fn remove_range(
+        &mut self,
+        params: versedb::RemoveRangeParams,
+        results: versedb::RemoveRangeResults,
+    ) -> Promise<(), Error> {
+        let mut server = self.as_ref().clone();
+        server.remove_range(params, results)
     }
 
     fn helloworld(

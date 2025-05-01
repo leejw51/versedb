@@ -173,7 +173,7 @@ async fn test_idb_flush() -> Result<()> {
 
     // Close and reopen to verify persistence
     db.close().await?;
-    
+
     let mut db = IdbDatabaseWrapper::open("test_db_flush").await?;
     assert_eq!(db.select(b"key1").await?, Some(b"value1".to_vec()));
     assert_eq!(db.select(b"key2").await?, Some(b"value2".to_vec()));

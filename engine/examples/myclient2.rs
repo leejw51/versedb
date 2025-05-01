@@ -9,8 +9,9 @@ async fn print_menu() {
     println!("2. Remove key");
     println!("3. Select value by key");
     println!("4. Select range");
-    println!("5. Hello world");
-    println!("6. Flush");
+    println!("5. Remove range");
+    println!("6. Hello world");
+    println!("7. Flush");
     println!("0. Exit");
     print!("\nEnter your choice: ");
     io::stdout().flush().unwrap();
@@ -70,11 +71,27 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                         }
                     }
                     "5" => {
+                        let start_key = get_input("Enter start key: ").await;
+                        let end_key = get_input("Enter end key: ").await;
+                        let removed = client
+                            .remove_range(start_key.as_bytes(), end_key.as_bytes())
+                            .await?;
+                        println!("\nRemoved range results:");
+                        for (k, v) in removed {
+                            println!(
+                                "Key: {}, Value: {}",
+                                String::from_utf8_lossy(&k),
+                                String::from_utf8_lossy(&v)
+                            );
+                        }
+                        println!("Range removed successfully!");
+                    }
+                    "6" => {
                         let name = get_input("Enter name: ").await;
                         let result = client.helloworld(&name).await?;
                         println!("{}", result);
                     }
-                    "6" => {
+                    "7" => {
                         client.flush().await?;
                         println!("Database flushed successfully!");
                     }

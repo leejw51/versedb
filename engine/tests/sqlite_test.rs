@@ -121,9 +121,15 @@ async fn test_sqlite_database_remove() {
     let mut db = SqliteDatabase::open(path).await.unwrap();
 
     // Add test data
-    db.add("key1".as_bytes(), "value1".as_bytes()).await.unwrap();
-    db.add("key2".as_bytes(), "value2".as_bytes()).await.unwrap();
-    db.add("key3".as_bytes(), "value3".as_bytes()).await.unwrap();
+    db.add("key1".as_bytes(), "value1".as_bytes())
+        .await
+        .unwrap();
+    db.add("key2".as_bytes(), "value2".as_bytes())
+        .await
+        .unwrap();
+    db.add("key3".as_bytes(), "value3".as_bytes())
+        .await
+        .unwrap();
 
     // Test removing middle element
     db.remove("key2".as_bytes()).await.unwrap();
@@ -167,8 +173,12 @@ async fn test_sqlite_database_flush() {
         let mut db = SqliteDatabase::open(path).await.unwrap();
 
         // Add test data
-        db.add("key1".as_bytes(), "value1".as_bytes()).await.unwrap();
-        db.add("key2".as_bytes(), "value2".as_bytes()).await.unwrap();
+        db.add("key1".as_bytes(), "value1".as_bytes())
+            .await
+            .unwrap();
+        db.add("key2".as_bytes(), "value2".as_bytes())
+            .await
+            .unwrap();
 
         // Explicitly flush the data
         db.flush().await.unwrap();
@@ -190,7 +200,7 @@ async fn test_sqlite_database_flush() {
     // Open a new connection to verify persistence
     {
         let mut db = SqliteDatabase::open(path).await.unwrap();
-        
+
         assert_eq!(
             db.select("key1".as_bytes()).await.unwrap(),
             Some("value1".as_bytes().to_vec())

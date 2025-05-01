@@ -49,12 +49,28 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 );
             }
 
-            // Cleanup all test keys
+            // Test remove_range functionality
+            println!("\nTesting remove_range...");
+            let removed = client.remove_range(b"key1", b"key3").await?;
+            println!("Removed range results:");
+            for (k, v) in removed {
+                println!(
+                    "Key: {:?}, Value: {:?}",
+                    String::from_utf8_lossy(&k),
+                    String::from_utf8_lossy(&v)
+                );
+            }
+
+            // Verify removal by trying to select the range again
+            let empty_range = client.select_range(b"key1", b"key3").await?;
+            println!(
+                "\nVerifying removal - range should be empty: {} items",
+                empty_range.len()
+            );
+
+            // Remove the remaining test key
             client.remove(key).await?;
-            client.remove(b"key1").await?;
-            client.remove(b"key2").await?;
-            client.remove(b"key3").await?;
-            println!("\nCleaned up all test keys");
+            println!("\nCleaned up remaining test key");
 
             Ok(())
         })
