@@ -11,6 +11,7 @@ pub mod server;
 pub mod sled;
 #[cfg(not(target_arch = "wasm32"))]
 pub mod sqlite;
+pub mod yaml;
 #[cfg(not(target_arch = "wasm32"))]
 pub use client::VerseDbClient;
 pub use database::Database;

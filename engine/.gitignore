@@ -8,3 +8,4 @@ books.csv
 *.json
 *.txt
 *.sqlite
+*.yaml
