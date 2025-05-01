@@ -1,6 +1,4 @@
-#[cfg(not(target_arch = "wasm32"))]
 use chrono::{DateTime, Utc};
-#[cfg(not(target_arch = "wasm32"))]
 use serde::{Deserialize, Serialize};
 #[cfg(not(target_arch = "wasm32"))]
 use std::error::Error;

@@ -28,6 +28,12 @@ jobs:
         sudo apt-get update
         sudo apt-get install -y capnproto
 
+    - name: Install Chrome and chromedriver
+      run: |
+        sudo apt-get install -y chromium-browser chromium-chromedriver
+        export CHROME_BIN=/usr/bin/chromium-browser
+        export CHROMEDRIVER=/usr/bin/chromedriver
+
     - name: Install wasm-pack
       run: curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh
       
@@ -42,6 +48,8 @@ jobs:
         cd engine
         make
         make test
+        export CHROME_BIN=/usr/bin/chromium-browser
+        export CHROMEDRIVER=/usr/bin/chromedriver
         make testwasm32
         cd ../testweb
         make build 
