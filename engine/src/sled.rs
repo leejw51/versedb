@@ -1,30 +1,10 @@
-use crate::database::{Database, Result};
+use super::database::{Database, Result};
 use async_trait::async_trait;
 use sled::Db;
-use std::cell::UnsafeCell;
+use std::sync::Mutex;
 
 pub struct SledDatabase {
-    db: UnsafeCell<Db>,
-}
-
-impl Clone for SledDatabase {
-    fn clone(&self) -> Self {
-        Self {
-            db: UnsafeCell::new(self.get_db().clone()),
-        }
-    }
-}
-
-impl SledDatabase {
-    // Helper method to safely get access to db
-    fn get_db(&self) -> &Db {
-        unsafe { &*self.db.get() }
-    }
-
-    // Helper method to safely get mutable access to db
-    fn get_db_mut(&self) -> &mut Db {
-        unsafe { &mut *self.db.get() }
-    }
+    db: Mutex<Db>,
 }
 
 #[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
@@ -32,34 +12,32 @@ impl SledDatabase {
 impl Database for SledDatabase {
     async fn open(path: &str) -> Result<Self> {
         let db = sled::open(path)?;
-        Ok(SledDatabase {
-            db: UnsafeCell::new(db),
-        })
+        Ok(Self { db: Mutex::new(db) })
     }
 
     async fn close(&mut self) -> Result<()> {
-        self.get_db_mut().flush()?;
+        self.db.lock().unwrap().flush()?;
         Ok(())
     }
 
     async fn add(&mut self, key: &[u8], value: &[u8]) -> Result<()> {
-        self.get_db_mut().insert(key, value)?;
+        self.db.lock().unwrap().insert(key, value)?;
         Ok(())
     }
 
     async fn select(&self, key: &[u8]) -> Result<Option<Vec<u8>>> {
-        Ok(self.get_db().get(key)?.map(|v| v.to_vec()))
+        Ok(self.db.lock().unwrap().get(key)?.map(|v| v.to_vec()))
     }
 
     async fn remove(&mut self, key: &[u8]) -> Result<()> {
-        self.get_db_mut().remove(key)?;
+        self.db.lock().unwrap().remove(key)?;
         Ok(())
     }
 
     async fn select_range(&self, start: &[u8], end: &[u8]) -> Result<Vec<(Vec<u8>, Vec<u8>)>> {
-        let range = self.get_db().range(start..end);
         let mut result = Vec::new();
-        for item in range {
+        let db = self.db.lock().unwrap();
+        for item in db.range(start..end) {
             let (key, value) = item?;
             result.push((key.to_vec(), value.to_vec()));
         }
@@ -67,30 +45,31 @@ impl Database for SledDatabase {
     }
 
     async fn remove_range(&self, start: &[u8], end: &[u8]) -> Result<Vec<(Vec<u8>, Vec<u8>)>> {
-        let range = self.get_db().range(start..end);
         let mut result = Vec::new();
+        let db = self.db.lock().unwrap();
 
-        // Collect all keys and values first since we can't modify while iterating
-        for item in range {
-            let (key, value) = item?;
-            result.push((key.to_vec(), value.to_vec()));
-        }
+        // First collect all items in range
+        let items_to_remove: Vec<(Vec<u8>, Vec<u8>)> = db
+            .range(start..end)
+            .filter_map(|res| res.ok())
+            .map(|(key, value)| (key.to_vec(), value.to_vec()))
+            .collect();
 
-        // Remove the collected keys
-        let db = self.get_db_mut();
-        for (key, _) in &result {
+        // Then remove them and build result
+        for (key, value) in &items_to_remove {
             db.remove(key)?;
+            result.push((key.clone(), value.clone()));
         }
 
         Ok(result)
     }
 
     async fn flush(&mut self) -> Result<()> {
-        self.get_db_mut().flush()?;
+        self.db.lock().unwrap().flush()?;
         Ok(())
     }
 }
 
-// SAFETY: SledDatabase is safe to share between threads because db access is protected by UnsafeCell
+// SAFETY: SledDatabase is safe to share between threads because data access is protected by Mutex
 unsafe impl Send for SledDatabase {}
 unsafe impl Sync for SledDatabase {}

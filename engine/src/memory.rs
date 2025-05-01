@@ -1,29 +1,17 @@
 use super::database::{Database, Result};
 use async_trait::async_trait;
-use std::cell::UnsafeCell;
 use std::collections::HashMap;
+use std::sync::Mutex;
 
 pub struct MemoryDatabase {
-    data: UnsafeCell<HashMap<Vec<u8>, Vec<u8>>>,
+    data: Mutex<HashMap<Vec<u8>, Vec<u8>>>,
 }
 
 impl Clone for MemoryDatabase {
     fn clone(&self) -> Self {
         Self {
-            data: UnsafeCell::new(self.get_data().clone()),
+            data: Mutex::new(self.data.lock().unwrap().clone()),
         }
-    }
-}
-
-impl MemoryDatabase {
-    // Helper method to safely get access to data
-    fn get_data(&self) -> &HashMap<Vec<u8>, Vec<u8>> {
-        unsafe { &*self.data.get() }
-    }
-
-    // Helper method to safely get mutable access to data
-    fn get_data_mut(&self) -> &mut HashMap<Vec<u8>, Vec<u8>> {
-        unsafe { &mut *self.data.get() }
     }
 }
 
@@ -32,26 +20,28 @@ impl MemoryDatabase {
 impl Database for MemoryDatabase {
     async fn open(_path: &str) -> Result<Self> {
         Ok(Self {
-            data: UnsafeCell::new(HashMap::new()),
+            data: Mutex::new(HashMap::new()),
         })
     }
 
     async fn close(&mut self) -> Result<()> {
-        // No need to do anything for memory database
         Ok(())
     }
 
     async fn add(&mut self, key: &[u8], value: &[u8]) -> Result<()> {
-        self.get_data_mut().insert(key.to_vec(), value.to_vec());
+        self.data
+            .lock()
+            .unwrap()
+            .insert(key.to_vec(), value.to_vec());
         Ok(())
     }
 
     async fn select(&self, key: &[u8]) -> Result<Option<Vec<u8>>> {
-        Ok(self.get_data().get(key).cloned())
+        Ok(self.data.lock().unwrap().get(key).cloned())
     }
 
     async fn remove(&mut self, key: &[u8]) -> Result<()> {
-        self.get_data_mut().remove(key);
+        self.data.lock().unwrap().remove(key);
         Ok(())
     }
 
@@ -59,7 +49,8 @@ impl Database for MemoryDatabase {
         let mut result = Vec::new();
         let start_vec = start.to_vec();
         let end_vec = end.to_vec();
-        for (key, value) in self.get_data().iter() {
+        let data = self.data.lock().unwrap();
+        for (key, value) in data.iter() {
             if key >= &start_vec && key < &end_vec {
                 result.push((key.clone(), value.clone()));
             }
@@ -71,10 +62,10 @@ impl Database for MemoryDatabase {
         let mut result = Vec::new();
         let start_vec = start.to_vec();
         let end_vec = end.to_vec();
+        let mut data = self.data.lock().unwrap();
 
         // Collect keys to remove and their values
-        let keys_to_remove: Vec<Vec<u8>> = self
-            .get_data()
+        let keys_to_remove: Vec<Vec<u8>> = data
             .iter()
             .filter(|(key, _)| *key >= &start_vec && *key < &end_vec)
             .map(|(key, value)| {
@@ -84,7 +75,6 @@ impl Database for MemoryDatabase {
             .collect();
 
         // Remove the collected keys
-        let data = self.get_data_mut();
         for key in keys_to_remove {
             data.remove(&key);
         }
@@ -93,11 +83,10 @@ impl Database for MemoryDatabase {
     }
 
     async fn flush(&mut self) -> Result<()> {
-        // No need to flush for memory database
         Ok(())
     }
 }
 
-// SAFETY: MemoryDatabase is safe to share between threads because data access is protected by UnsafeCell
+// SAFETY: MemoryDatabase is safe to share between threads because data access is protected by Mutex
 unsafe impl Send for MemoryDatabase {}
 unsafe impl Sync for MemoryDatabase {}

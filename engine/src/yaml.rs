@@ -1,36 +1,15 @@
 use super::database::{Database, Result};
 use async_trait::async_trait;
-use std::cell::UnsafeCell;
+use serde_yaml::{self, Value};
 use std::collections::HashMap;
-use std::fs::{File, OpenOptions};
-use std::io::{Read, Write};
+use std::error::Error;
+use std::fs;
 use std::path::Path;
-use yaml_rust2::{YamlEmitter, YamlLoader};
+use std::sync::Mutex;
 
 pub struct YamlDatabase {
+    data: Mutex<HashMap<Vec<u8>, Vec<u8>>>,
     path: String,
-    data: UnsafeCell<HashMap<Vec<u8>, Vec<u8>>>,
-}
-
-impl Clone for YamlDatabase {
-    fn clone(&self) -> Self {
-        Self {
-            path: self.path.clone(),
-            data: UnsafeCell::new(self.get_data().clone()),
-        }
-    }
-}
-
-impl YamlDatabase {
-    // Helper method to safely get access to data
-    fn get_data(&self) -> &HashMap<Vec<u8>, Vec<u8>> {
-        unsafe { &*self.data.get() }
-    }
-
-    // Helper method to safely get mutable access to data
-    fn get_data_mut(&self) -> &mut HashMap<Vec<u8>, Vec<u8>> {
-        unsafe { &mut *self.data.get() }
-    }
 }
 
 #[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
@@ -40,19 +19,13 @@ impl Database for YamlDatabase {
         let mut data = HashMap::new();
 
         if Path::new(path).exists() {
-            let mut file = File::open(path)?;
-            let mut contents = String::new();
-            file.read_to_string(&mut contents)?;
-
-            if !contents.is_empty() {
-                let docs = YamlLoader::load_from_str(&contents)?;
-                if !docs.is_empty() {
-                    let doc = &docs[0];
-                    if let Some(hash) = doc.as_hash() {
-                        for (key, value) in hash {
-                            let key_str = key.as_str().unwrap_or_default();
-                            let value_str = value.as_str().unwrap_or_default();
-                            data.insert(key_str.as_bytes().to_vec(), value_str.as_bytes().to_vec());
+            let contents = fs::read_to_string(path)?;
+            if !contents.trim().is_empty() {
+                let yaml: Value = serde_yaml::from_str(&contents)?;
+                if let Value::Mapping(map) = yaml {
+                    for (key, value) in map {
+                        if let (Value::String(k), Value::String(v)) = (key, value) {
+                            data.insert(k.as_bytes().to_vec(), v.as_bytes().to_vec());
                         }
                     }
                 }
@@ -60,8 +33,8 @@ impl Database for YamlDatabase {
         }
 
         Ok(Self {
+            data: Mutex::new(data),
             path: path.to_string(),
-            data: UnsafeCell::new(data),
         })
     }
 
@@ -70,16 +43,19 @@ impl Database for YamlDatabase {
     }
 
     async fn add(&mut self, key: &[u8], value: &[u8]) -> Result<()> {
-        self.get_data_mut().insert(key.to_vec(), value.to_vec());
+        self.data
+            .lock()
+            .unwrap()
+            .insert(key.to_vec(), value.to_vec());
         Ok(())
     }
 
     async fn select(&self, key: &[u8]) -> Result<Option<Vec<u8>>> {
-        Ok(self.get_data().get(key).cloned())
+        Ok(self.data.lock().unwrap().get(key).cloned())
     }
 
     async fn remove(&mut self, key: &[u8]) -> Result<()> {
-        self.get_data_mut().remove(key);
+        self.data.lock().unwrap().remove(key);
         Ok(())
     }
 
@@ -87,7 +63,8 @@ impl Database for YamlDatabase {
         let mut result = Vec::new();
         let start_vec = start.to_vec();
         let end_vec = end.to_vec();
-        for (key, value) in self.get_data().iter() {
+        let data = self.data.lock().unwrap();
+        for (key, value) in data.iter() {
             if key >= &start_vec && key < &end_vec {
                 result.push((key.clone(), value.clone()));
             }
@@ -99,9 +76,10 @@ impl Database for YamlDatabase {
         let mut result = Vec::new();
         let start_vec = start.to_vec();
         let end_vec = end.to_vec();
+        let mut data = self.data.lock().unwrap();
 
-        let keys_to_remove: Vec<Vec<u8>> = self
-            .get_data()
+        // Collect keys to remove and their values
+        let keys_to_remove: Vec<Vec<u8>> = data
             .iter()
             .filter(|(key, _)| *key >= &start_vec && *key < &end_vec)
             .map(|(key, value)| {
@@ -110,7 +88,7 @@ impl Database for YamlDatabase {
             })
             .collect();
 
-        let data = self.get_data_mut();
+        // Remove the collected keys
         for key in keys_to_remove {
             data.remove(&key);
         }
@@ -119,34 +97,23 @@ impl Database for YamlDatabase {
     }
 
     async fn flush(&mut self) -> Result<()> {
-        let mut file = OpenOptions::new()
-            .write(true)
-            .create(true)
-            .truncate(true)
-            .open(&self.path)?;
+        let mut map = serde_yaml::Mapping::new();
+        let data = self.data.lock().unwrap();
 
-        let mut yaml_map = yaml_rust2::yaml::Hash::new();
-        for (key, value) in self.get_data().iter() {
-            let key_str = String::from_utf8_lossy(key);
-            let value_str = String::from_utf8_lossy(value);
-            yaml_map.insert(
-                yaml_rust2::yaml::Yaml::String(key_str.to_string()),
-                yaml_rust2::yaml::Yaml::String(value_str.to_string()),
-            );
+        for (key, value) in data.iter() {
+            let key_str = String::from_utf8(key.clone())?;
+            let value_str = String::from_utf8(value.clone())?;
+            map.insert(Value::String(key_str), Value::String(value_str));
         }
 
-        let yaml_doc = yaml_rust2::yaml::Yaml::Hash(yaml_map);
-        let mut out_str = String::new();
-        {
-            let mut emitter = YamlEmitter::new(&mut out_str);
-            emitter.dump(&yaml_doc)?;
-        }
-        write!(file, "{}", out_str)?;
+        let yaml = Value::Mapping(map);
+        let yaml_str = serde_yaml::to_string(&yaml)?;
+        fs::write(&self.path, yaml_str)?;
 
         Ok(())
     }
 }
 
-// SAFETY: YamlDatabase is safe to share between threads because data access is protected by UnsafeCell
+// SAFETY: YamlDatabase is safe to share between threads because data access is protected by Mutex
 unsafe impl Send for YamlDatabase {}
 unsafe impl Sync for YamlDatabase {}
