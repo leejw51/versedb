@@ -5,11 +5,32 @@ use std::error::Error;
 use std::fs::{File, OpenOptions};
 use std::io::{BufRead, BufReader, Write};
 use std::path::Path;
+use std::cell::UnsafeCell;
 
-#[derive(Clone)]
 pub struct CsvDatabase {
     path: String,
-    data: HashMap<Vec<u8>, Vec<u8>>,
+    data: UnsafeCell<HashMap<Vec<u8>, Vec<u8>>>,
+}
+
+impl Clone for CsvDatabase {
+    fn clone(&self) -> Self {
+        Self {
+            path: self.path.clone(),
+            data: UnsafeCell::new(self.get_data().clone()),
+        }
+    }
+}
+
+impl CsvDatabase {
+    // Helper method to safely get access to data
+    fn get_data(&self) -> &HashMap<Vec<u8>, Vec<u8>> {
+        unsafe { &*self.data.get() }
+    }
+
+    // Helper method to safely get mutable access to data
+    fn get_data_mut(&self) -> &mut HashMap<Vec<u8>, Vec<u8>> {
+        unsafe { &mut *self.data.get() }
+    }
 }
 
 #[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
@@ -33,7 +54,7 @@ impl Database for CsvDatabase {
 
         Ok(Self {
             path: path.to_string(),
-            data,
+            data: UnsafeCell::new(data),
         })
     }
 
@@ -44,7 +65,7 @@ impl Database for CsvDatabase {
             .truncate(true)
             .open(&self.path)?;
 
-        for (key, value) in &self.data {
+        for (key, value) in self.get_data().iter() {
             let key_str = String::from_utf8_lossy(key);
             let value_str = String::from_utf8_lossy(value);
             writeln!(file, "{},{}", key_str, value_str)?;
@@ -54,16 +75,16 @@ impl Database for CsvDatabase {
     }
 
     async fn add(&mut self, key: &[u8], value: &[u8]) -> Result<()> {
-        self.data.insert(key.to_vec(), value.to_vec());
+        self.get_data_mut().insert(key.to_vec(), value.to_vec());
         Ok(())
     }
 
     async fn select(&self, key: &[u8]) -> Result<Option<Vec<u8>>> {
-        Ok(self.data.get(key).cloned())
+        Ok(self.get_data().get(key).cloned())
     }
 
     async fn remove(&mut self, key: &[u8]) -> Result<()> {
-        self.data.remove(key);
+        self.get_data_mut().remove(key);
         Ok(())
     }
 
@@ -71,11 +92,36 @@ impl Database for CsvDatabase {
         let mut result = Vec::new();
         let start_vec = start.to_vec();
         let end_vec = end.to_vec();
-        for (key, value) in &self.data {
+        for (key, value) in self.get_data().iter() {
             if key >= &start_vec && key < &end_vec {
                 result.push((key.clone(), value.clone()));
             }
         }
+        Ok(result)
+    }
+
+    async fn remove_range(&self, start: &[u8], end: &[u8]) -> Result<Vec<(Vec<u8>, Vec<u8>)>> {
+        let mut result = Vec::new();
+        let start_vec = start.to_vec();
+        let end_vec = end.to_vec();
+        
+        // Collect keys to remove and their values
+        let keys_to_remove: Vec<Vec<u8>> = self
+            .get_data()
+            .iter()
+            .filter(|(key, _)| *key >= &start_vec && *key < &end_vec)
+            .map(|(key, value)| {
+                result.push((key.clone(), value.clone()));
+                key.clone()
+            })
+            .collect();
+
+        // Remove the collected keys
+        let data = self.get_data_mut();
+        for key in keys_to_remove {
+            data.remove(&key);
+        }
+
         Ok(result)
     }
 
@@ -86,7 +132,7 @@ impl Database for CsvDatabase {
             .truncate(true)
             .open(&self.path)?;
 
-        for (key, value) in &self.data {
+        for (key, value) in self.get_data().iter() {
             let key_str = String::from_utf8_lossy(key);
             let value_str = String::from_utf8_lossy(value);
             writeln!(file, "{},{}", key_str, value_str)?;
@@ -95,3 +141,7 @@ impl Database for CsvDatabase {
         Ok(())
     }
 }
+
+// SAFETY: CsvDatabase is safe to share between threads because data access is protected by UnsafeCell
+unsafe impl Send for CsvDatabase {}
+unsafe impl Sync for CsvDatabase {}

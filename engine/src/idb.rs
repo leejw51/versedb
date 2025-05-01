@@ -372,6 +372,64 @@ impl Database for IdbDatabaseWrapper {
         Ok(items)
     }
 
+    async fn remove_range(&self, start: &[u8], end: &[u8]) -> Result<Vec<(Vec<u8>, Vec<u8>)>> {
+        let tx = self
+            .db
+            .transaction_with_str_sequence_and_mode(
+                &js_sys::Array::of1(&JsValue::from_str("store")),
+                IdbTransactionMode::Readwrite,
+            )
+            .map_err(|e| JsError::from(e))?;
+
+        let store = tx.object_store("store").map_err(|e| JsError::from(e))?;
+
+        // Create a key range
+        let start_key = Uint8Array::from(start);
+        let end_key = Uint8Array::from(end);
+        let key_range = web_sys::IdbKeyRange::bound(&start_key.into(), &end_key.into())
+            .map_err(|e| JsError::from(e))?;
+
+        // First get all entries that will be removed
+        let entries = self.select_range(start, end).await?;
+
+        // Delete each key in the range individually since delete_with_key is not available
+        for (key, _) in &entries {
+            let key_array = Uint8Array::from(key.as_slice());
+            let request: IdbRequest = store
+                .delete(&key_array.into())
+                .map_err(|e| JsError::from(e))?;
+
+            let promise = Promise::new(&mut |resolve, _reject| {
+                let on_success = Closure::<dyn FnMut(web_sys::Event)>::new(move |_| {
+                    resolve
+                        .call1(&JsValue::undefined(), &JsValue::undefined())
+                        .unwrap();
+                });
+
+                let request_error = request.clone();
+                let on_error = Closure::<dyn FnMut(web_sys::Event)>::new(move |_| {
+                    let error = request_error.error().unwrap();
+                    _reject
+                        .call1(&JsValue::undefined(), &JsValue::from(error))
+                        .unwrap();
+                });
+
+                request.set_onsuccess(Some(on_success.as_ref().unchecked_ref()));
+                request.set_onerror(Some(on_error.as_ref().unchecked_ref()));
+
+                on_success.forget();
+                on_error.forget();
+            });
+
+            // Wait for deletion to complete
+            wasm_bindgen_futures::JsFuture::from(promise)
+                .await
+                .map_err(|e| JsError::from(e))?;
+        }
+
+        Ok(entries)
+    }
+
     async fn flush(&mut self) -> Result<()> {
         // IndexedDB automatically persists data, no explicit flush needed
         Ok(())

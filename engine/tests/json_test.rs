@@ -80,3 +80,51 @@ async fn test_json_database_persistence() {
     assert_eq!(json["key1"].as_str(), Some("value1"));
     assert_eq!(json["key2"].as_str(), Some("value2"));
 }
+
+#[cfg(not(target_arch = "wasm32"))]
+#[tokio::test]
+async fn test_json_database_remove_range() {
+    let temp_file = NamedTempFile::new().unwrap();
+    let path = temp_file.path().to_str().unwrap();
+
+    let mut db = JsonDatabase::open(path).await.unwrap();
+    
+    // Add entries with ordered keys
+    let entries = vec![
+        (b"key1", b"value1"),
+        (b"key2", b"value2"),
+        (b"key3", b"value3"),
+        (b"key4", b"value4"),
+        (b"key5", b"value5"),
+    ];
+
+    for (key, value) in &entries {
+        db.add(*key, *value).await.unwrap();
+    }
+
+    // Test remove_range from key2 to key4 (inclusive of key2, exclusive of key4)
+    let removed = db.remove_range(b"key2", b"key4").await.unwrap();
+
+    // Verify the removed entries
+    assert_eq!(removed.len(), 2);
+    assert!(removed.contains(&(b"key2".to_vec(), b"value2".to_vec())));
+    assert!(removed.contains(&(b"key3".to_vec(), b"value3".to_vec())));
+
+    // Verify the remaining entries
+    let remaining = db.select_range(b"key1", b"key6").await.unwrap();
+    assert_eq!(remaining.len(), 3);
+    assert!(remaining.contains(&(b"key1".to_vec(), b"value1".to_vec())));
+    assert!(remaining.contains(&(b"key4".to_vec(), b"value4".to_vec())));
+    assert!(remaining.contains(&(b"key5".to_vec(), b"value5".to_vec())));
+
+    // Test persistence after remove_range
+    db.close().await.unwrap();
+    
+    // Reopen and verify the changes persisted
+    let db = JsonDatabase::open(path).await.unwrap();
+    let all_entries = db.select_range(b"key1", b"key6").await.unwrap();
+    assert_eq!(all_entries.len(), 3);
+    assert!(all_entries.contains(&(b"key1".to_vec(), b"value1".to_vec())));
+    assert!(all_entries.contains(&(b"key4".to_vec(), b"value4".to_vec())));
+    assert!(all_entries.contains(&(b"key5".to_vec(), b"value5".to_vec())));
+}

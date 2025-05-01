@@ -3,9 +3,17 @@ use async_trait::async_trait;
 use rusqlite::{Connection, params};
 use std::error::Error;
 use std::sync::Mutex;
+use std::cell::UnsafeCell;
 
 pub struct SqliteDatabase {
-    conn: Mutex<Connection>,
+    conn: UnsafeCell<Mutex<Connection>>,
+}
+
+impl SqliteDatabase {
+    // Helper method to safely get mutable access to connection
+    fn get_conn(&self) -> &Mutex<Connection> {
+        unsafe { &*self.conn.get() }
+    }
 }
 
 #[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
@@ -24,7 +32,7 @@ impl Database for SqliteDatabase {
         )?;
 
         Ok(SqliteDatabase {
-            conn: Mutex::new(conn),
+            conn: UnsafeCell::new(Mutex::new(conn)),
         })
     }
 
@@ -33,7 +41,7 @@ impl Database for SqliteDatabase {
     }
 
     async fn add(&mut self, key: &[u8], value: &[u8]) -> Result<()> {
-        let conn = self.conn.lock().unwrap();
+        let conn = self.get_conn().lock().unwrap();
         conn.execute(
             "INSERT OR REPLACE INTO kv_store (key, value) VALUES (?, ?)",
             params![String::from_utf8_lossy(key), value],
@@ -42,7 +50,7 @@ impl Database for SqliteDatabase {
     }
 
     async fn select(&self, key: &[u8]) -> Result<Option<Vec<u8>>> {
-        let conn = self.conn.lock().unwrap();
+        let conn = self.get_conn().lock().unwrap();
         let mut stmt = conn.prepare("SELECT value FROM kv_store WHERE key = ?")?;
         let key_str = String::from_utf8_lossy(key);
 
@@ -59,7 +67,7 @@ impl Database for SqliteDatabase {
     }
 
     async fn remove(&mut self, key: &[u8]) -> Result<()> {
-        let conn = self.conn.lock().unwrap();
+        let conn = self.get_conn().lock().unwrap();
         conn.execute(
             "DELETE FROM kv_store WHERE key = ?",
             params![String::from_utf8_lossy(key)],
@@ -68,7 +76,7 @@ impl Database for SqliteDatabase {
     }
 
     async fn select_range(&self, start: &[u8], end: &[u8]) -> Result<Vec<(Vec<u8>, Vec<u8>)>> {
-        let conn = self.conn.lock().unwrap();
+        let conn = self.get_conn().lock().unwrap();
         let mut stmt = conn
             .prepare("SELECT key, value FROM kv_store WHERE key >= ? AND key < ? ORDER BY key")?;
 
@@ -89,9 +97,30 @@ impl Database for SqliteDatabase {
         Ok(results)
     }
 
+    async fn remove_range(&self, start: &[u8], end: &[u8]) -> Result<Vec<(Vec<u8>, Vec<u8>)>> {
+        // First get all entries that will be removed
+        let entries = self.select_range(start, end).await?;
+        
+        // Then delete the range
+        let conn = self.get_conn().lock().unwrap();
+        conn.execute(
+            "DELETE FROM kv_store WHERE key >= ? AND key < ?",
+            params![
+                String::from_utf8_lossy(start),
+                String::from_utf8_lossy(end)
+            ],
+        )?;
+        
+        Ok(entries)
+    }
+
     async fn flush(&mut self) -> Result<()> {
-        let conn = self.conn.lock().unwrap();
+        let conn = self.get_conn().lock().unwrap();
         conn.execute("PRAGMA wal_checkpoint(FULL)", [])?;
         Ok(())
     }
 }
+
+// SAFETY: SqliteDatabase is safe to share between threads because Connection access is protected by Mutex
+unsafe impl Send for SqliteDatabase {}
+unsafe impl Sync for SqliteDatabase {}

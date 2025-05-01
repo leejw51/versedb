@@ -25,6 +25,9 @@ pub trait Database: Send + Sync {
     /// Returns a vector of tuples containing (key, value) pairs
     async fn select_range(&self, start: &[u8], end: &[u8]) -> Result<Vec<(Vec<u8>, Vec<u8>)>>;
 
+    /// Remove key-value pairs within a range [start, end)
+    async fn remove_range(&self, start: &[u8], end: &[u8]) -> Result<Vec<(Vec<u8>, Vec<u8>)>>;
+
     /// Flush any pending writes to disk to ensure data durability
     async fn flush(&mut self) -> Result<()>;
 }

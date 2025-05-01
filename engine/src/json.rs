@@ -5,11 +5,23 @@ use std::collections::BTreeMap;
 use std::error::Error;
 use std::fs;
 use std::path::Path;
+use std::cell::UnsafeCell;
 
-#[derive(Clone)]
 pub struct JsonDatabase {
-    data: BTreeMap<Vec<u8>, Value>,
+    data: UnsafeCell<BTreeMap<Vec<u8>, Value>>,
     path: String,
+}
+
+impl JsonDatabase {
+    // Helper method to safely get access to data
+    fn get_data(&self) -> &BTreeMap<Vec<u8>, Value> {
+        unsafe { &*self.data.get() }
+    }
+
+    // Helper method to safely get mutable access to data
+    fn get_data_mut(&self) -> &mut BTreeMap<Vec<u8>, Value> {
+        unsafe { &mut *self.data.get() }
+    }
 }
 
 #[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
@@ -35,7 +47,7 @@ impl Database for JsonDatabase {
         };
 
         Ok(JsonDatabase {
-            data,
+            data: UnsafeCell::new(data),
             path: path.to_string(),
         })
     }
@@ -43,7 +55,7 @@ impl Database for JsonDatabase {
     async fn close(&mut self) -> Result<()> {
         let mut json_map = Map::new();
 
-        for (key, value) in &self.data {
+        for (key, value) in self.get_data().iter() {
             let key_str = String::from_utf8(key.clone())?;
             json_map.insert(key_str, value.clone());
         }
@@ -57,26 +69,26 @@ impl Database for JsonDatabase {
     async fn add(&mut self, key: &[u8], value: &[u8]) -> Result<()> {
         let value_str = String::from_utf8(value.to_vec())?;
         let value_json = Value::String(value_str);
-        self.data.insert(key.to_vec(), value_json);
+        self.get_data_mut().insert(key.to_vec(), value_json);
         Ok(())
     }
 
     async fn select(&self, key: &[u8]) -> Result<Option<Vec<u8>>> {
         Ok(self
-            .data
+            .get_data()
             .get(key)
             .and_then(|v| v.as_str().map(|s| s.as_bytes().to_vec())))
     }
 
     async fn remove(&mut self, key: &[u8]) -> Result<()> {
-        self.data.remove(key);
+        self.get_data_mut().remove(key);
         Ok(())
     }
 
     async fn select_range(&self, start: &[u8], end: &[u8]) -> Result<Vec<(Vec<u8>, Vec<u8>)>> {
         let mut result = Vec::new();
 
-        for (key, value) in self.data.range(start.to_vec()..end.to_vec()) {
+        for (key, value) in self.get_data().range(start.to_vec()..end.to_vec()) {
             if let Some(str_value) = value.as_str() {
                 result.push((key.clone(), str_value.as_bytes().to_vec()));
             }
@@ -85,10 +97,33 @@ impl Database for JsonDatabase {
         Ok(result)
     }
 
+    async fn remove_range(&self, start: &[u8], end: &[u8]) -> Result<Vec<(Vec<u8>, Vec<u8>)>> {
+        let mut result = Vec::new();
+        let keys_to_remove: Vec<Vec<u8>> = self
+            .get_data()
+            .range(start.to_vec()..end.to_vec())
+            .filter_map(|(key, value)| {
+                value
+                    .as_str()
+                    .map(|str_value| (key.clone(), str_value.as_bytes().to_vec()))
+            })
+            .inspect(|pair| result.push(pair.clone()))
+            .map(|(key, _)| key)
+            .collect();
+
+        // Remove the collected keys
+        let data = self.get_data_mut();
+        for key in keys_to_remove {
+            data.remove(&key);
+        }
+
+        Ok(result)
+    }
+
     async fn flush(&mut self) -> Result<()> {
         let mut json_map = Map::new();
 
-        for (key, value) in &self.data {
+        for (key, value) in self.get_data().iter() {
             let key_str = String::from_utf8(key.clone())?;
             json_map.insert(key_str, value.clone());
         }
@@ -99,3 +134,7 @@ impl Database for JsonDatabase {
         Ok(())
     }
 }
+
+// SAFETY: JsonDatabase is safe to share between threads because data access is protected by UnsafeCell
+unsafe impl Send for JsonDatabase {}
+unsafe impl Sync for JsonDatabase {}
