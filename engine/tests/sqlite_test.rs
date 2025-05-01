@@ -110,3 +110,100 @@ async fn test_sqlite_database_remove_range() {
     // Clean up
     fs::remove_file(path).unwrap();
 }
+
+#[cfg(not(target_arch = "wasm32"))]
+#[tokio::test]
+async fn test_sqlite_database_remove() {
+    // Create a temporary file for testing
+    let temp_file = NamedTempFile::new().unwrap();
+    let path = temp_file.path().to_str().unwrap();
+
+    let mut db = SqliteDatabase::open(path).await.unwrap();
+
+    // Add test data
+    db.add("key1".as_bytes(), "value1".as_bytes()).await.unwrap();
+    db.add("key2".as_bytes(), "value2".as_bytes()).await.unwrap();
+    db.add("key3".as_bytes(), "value3".as_bytes()).await.unwrap();
+
+    // Test removing middle element
+    db.remove("key2".as_bytes()).await.unwrap();
+    assert_eq!(db.select("key2".as_bytes()).await.unwrap(), None);
+    assert_eq!(
+        db.select("key1".as_bytes()).await.unwrap(),
+        Some("value1".as_bytes().to_vec())
+    );
+    assert_eq!(
+        db.select("key3".as_bytes()).await.unwrap(),
+        Some("value3".as_bytes().to_vec())
+    );
+
+    // Test removing first element
+    db.remove("key1".as_bytes()).await.unwrap();
+    assert_eq!(db.select("key1".as_bytes()).await.unwrap(), None);
+    assert_eq!(
+        db.select("key3".as_bytes()).await.unwrap(),
+        Some("value3".as_bytes().to_vec())
+    );
+
+    // Test removing last element
+    db.remove("key3".as_bytes()).await.unwrap();
+    assert_eq!(db.select("key3".as_bytes()).await.unwrap(), None);
+
+    // Test removing non-existent key (should not error)
+    db.remove("nonexistent".as_bytes()).await.unwrap();
+
+    // Clean up
+    fs::remove_file(path).unwrap();
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+#[tokio::test]
+async fn test_sqlite_database_flush() {
+    // Create a temporary file for testing
+    let temp_file = NamedTempFile::new().unwrap();
+    let path = temp_file.path().to_str().unwrap();
+
+    {
+        let mut db = SqliteDatabase::open(path).await.unwrap();
+
+        // Add test data
+        db.add("key1".as_bytes(), "value1".as_bytes()).await.unwrap();
+        db.add("key2".as_bytes(), "value2".as_bytes()).await.unwrap();
+
+        // Explicitly flush the data
+        db.flush().await.unwrap();
+
+        // Verify data is still accessible
+        assert_eq!(
+            db.select("key1".as_bytes()).await.unwrap(),
+            Some("value1".as_bytes().to_vec())
+        );
+        assert_eq!(
+            db.select("key2".as_bytes()).await.unwrap(),
+            Some("value2".as_bytes().to_vec())
+        );
+
+        // Close the first connection
+        db.close().await.unwrap();
+    }
+
+    // Open a new connection to verify persistence
+    {
+        let mut db = SqliteDatabase::open(path).await.unwrap();
+        
+        assert_eq!(
+            db.select("key1".as_bytes()).await.unwrap(),
+            Some("value1".as_bytes().to_vec())
+        );
+        assert_eq!(
+            db.select("key2".as_bytes()).await.unwrap(),
+            Some("value2".as_bytes().to_vec())
+        );
+
+        // Clean up
+        db.close().await.unwrap();
+    }
+
+    // Clean up the temporary file
+    fs::remove_file(path).unwrap();
+}

@@ -153,3 +153,32 @@ async fn test_idb_select_range() -> Result<()> {
     db.close().await?;
     Ok(())
 }
+
+#[cfg(all(target_arch = "wasm32", feature = "wasm"))]
+#[wasm_bindgen_test]
+async fn test_idb_flush() -> Result<()> {
+    // Open database
+    let mut db = IdbDatabaseWrapper::open("test_db_flush").await?;
+
+    // Add test data
+    db.add(b"key1", b"value1").await?;
+    db.add(b"key2", b"value2").await?;
+
+    // Explicitly flush the data
+    db.flush().await?;
+
+    // Verify data is still accessible
+    assert_eq!(db.select(b"key1").await?, Some(b"value1".to_vec()));
+    assert_eq!(db.select(b"key2").await?, Some(b"value2".to_vec()));
+
+    // Close and reopen to verify persistence
+    db.close().await?;
+    
+    let mut db = IdbDatabaseWrapper::open("test_db_flush").await?;
+    assert_eq!(db.select(b"key1").await?, Some(b"value1".to_vec()));
+    assert_eq!(db.select(b"key2").await?, Some(b"value2".to_vec()));
+
+    // Clean up
+    db.close().await?;
+    Ok(())
+}

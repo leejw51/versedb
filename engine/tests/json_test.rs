@@ -130,3 +130,33 @@ async fn test_json_database_remove_range() {
     assert!(all_entries.contains(&(b"key4".to_vec(), b"value4".to_vec())));
     assert!(all_entries.contains(&(b"key5".to_vec(), b"value5".to_vec())));
 }
+
+#[cfg(not(target_arch = "wasm32"))]
+#[tokio::test]
+async fn test_json_database_flush() {
+    let temp_file = NamedTempFile::new().unwrap();
+    let path = temp_file.path().to_str().unwrap();
+
+    let mut db = JsonDatabase::open(path).await.unwrap();
+    
+    // Add some data
+    db.add(b"key1", b"value1").await.unwrap();
+    db.add(b"key2", b"value2").await.unwrap();
+    
+    // Explicitly flush the data
+    db.flush().await.unwrap();
+    
+    // Verify data is persisted by reading the file directly
+    let contents = fs::read_to_string(path).unwrap();
+    let json: serde_json::Value = serde_json::from_str(&contents).unwrap();
+    assert!(json.is_object());
+    assert_eq!(json["key1"].as_str(), Some("value1"));
+    assert_eq!(json["key2"].as_str(), Some("value2"));
+    
+    // Verify data can still be read through the database
+    assert_eq!(db.select(b"key1").await.unwrap(), Some(b"value1".to_vec()));
+    assert_eq!(db.select(b"key2").await.unwrap(), Some(b"value2".to_vec()));
+    
+    // Clean up
+    db.close().await.unwrap();
+}

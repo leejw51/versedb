@@ -113,7 +113,7 @@ impl Database for SqliteDatabase {
 
     async fn flush(&mut self) -> Result<()> {
         let conn = self.get_conn().lock().unwrap();
-        conn.execute("PRAGMA wal_checkpoint(FULL)", [])?;
+        conn.query_row("PRAGMA wal_checkpoint(FULL)", [], |_| Ok(()))?;
         Ok(())
     }
 }

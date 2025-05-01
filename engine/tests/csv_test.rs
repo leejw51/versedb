@@ -103,3 +103,35 @@ async fn test_csv_database_remove_range() {
     // Clean up
     fs::remove_file(path).unwrap();
 }
+
+#[cfg(not(target_arch = "wasm32"))]
+#[tokio::test]
+async fn test_csv_database_flush() {
+    // Create a temporary file for testing
+    let temp_file = NamedTempFile::new().unwrap();
+    let path = temp_file.path().to_str().unwrap();
+
+    // Test open and add
+    let mut db = CsvDatabase::open(path).await.unwrap();
+    
+    // Add some data
+    db.add("key1".as_bytes(), "value1".as_bytes()).await.unwrap();
+    db.add("key2".as_bytes(), "value2".as_bytes()).await.unwrap();
+    
+    // Explicitly flush the data
+    db.flush().await.unwrap();
+    
+    // Verify data is persisted
+    assert_eq!(
+        db.select("key1".as_bytes()).await.unwrap(),
+        Some("value1".as_bytes().to_vec())
+    );
+    assert_eq!(
+        db.select("key2".as_bytes()).await.unwrap(),
+        Some("value2".as_bytes().to_vec())
+    );
+    
+    // Clean up
+    db.close().await.unwrap();
+    fs::remove_file(path).unwrap();
+}
