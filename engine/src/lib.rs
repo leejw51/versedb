@@ -5,6 +5,7 @@ pub mod database;
 #[cfg(target_arch = "wasm32")]
 pub mod idb;
 pub mod json;
+pub mod memory;
 #[cfg(not(target_arch = "wasm32"))]
 pub mod server;
 #[cfg(not(target_arch = "wasm32"))]

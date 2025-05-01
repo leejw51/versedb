@@ -2,6 +2,7 @@ use anyhow::Result;
 use versedb::database::Database;
 use versedb::yaml::YamlDatabase;
 
+#[cfg(not(target_arch = "wasm32"))]
 #[tokio::main]
 async fn main() -> Result<()> {
     // Create a new YAML database
@@ -67,4 +68,9 @@ async fn main() -> Result<()> {
     println!("Database closed successfully!");
 
     Ok(())
+}
+
+#[cfg(target_arch = "wasm32")]
+fn main() {
+    // Empty main function for wasm32 target
 }
