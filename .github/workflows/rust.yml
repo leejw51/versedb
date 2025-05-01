@@ -3,6 +3,8 @@ name: Rust CI
 on:
   push:
     branches: [ "main" ]
+    tags:
+      - 'v*'
   pull_request:
     branches: [ "main" ]
 
@@ -52,4 +54,39 @@ jobs:
         export CHROMEDRIVER=/usr/bin/chromedriver
         make testwasm32
         cd ../testweb
-        make build 
+        make build
+        
+    - name: Create Package
+      run: |
+        cd engine
+        make package
+
+    - name: Upload Package Artifact
+      uses: actions/upload-artifact@v3
+      with:
+        name: versedb-package
+        path: upload/
+        retention-days: 1
+
+  release:
+    needs: build
+    if: startsWith(github.ref, 'refs/tags/')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+    - name: Download Package Artifact
+      uses: actions/download-artifact@v3
+      with:
+        name: versedb-package
+        path: upload/
+
+    - name: Create Release
+      uses: softprops/action-gh-release@v1
+      with:
+        files: upload/*.zip
+        tag_name: ${{ github.ref_name }}
+        name: Release ${{ github.ref_name }}
+        draft: false
+        prerelease: false
+        generate_release_notes: true 
