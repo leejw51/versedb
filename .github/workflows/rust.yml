@@ -19,6 +19,7 @@ jobs:
     - name: Install Rust toolchain
       uses: dtolnay/rust-toolchain@nightly
       with:
+        toolchain: nightly-2025-04-05
         targets: wasm32-unknown-unknown
         components: rustfmt, clippy
     
@@ -29,10 +30,18 @@ jobs:
 
     - name: Install wasm-pack
       run: curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh
+      
+    - name: Install trunk
+      run: cargo install trunk
+      
+    - name: Install create-tauri-app
+      run: cargo install create-tauri-app --locked
     
     - name: Build and Test
       run: |
         cd engine
         make
         make test
-        make testwasm32 
+        make testwasm32
+        cd ../testweb
+        make build 
