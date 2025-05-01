@@ -59,13 +59,14 @@ package-wasm: wasm32
 	@echo "WASM package created: versedb_wasm32_$(TODAY).zip"
 
 # Package both native and wasm
-package: package-native package-wasm
+copy:
 	@mkdir -p $(UPLOAD_DIR)
 	@mv versedb_*.zip $(UPLOAD_DIR)/
 	@echo "All packages moved to $(UPLOAD_DIR)/"
 	@echo "Available packages in $(UPLOAD_DIR):"
 	@ls -l $(UPLOAD_DIR)/versedb_*.zip
-
+	
+package: package-native package-wasm copy
 clean:
 	cargo clean
 	rm -f versedb_*.zip
