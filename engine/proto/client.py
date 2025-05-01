@@ -51,6 +51,16 @@ async def main():
     for pair in result.pairs:
         print(f"  {pair.key} -> {pair.value}")
 
+    # Test removeRange
+    print("\nTesting removeRange...")
+    range = versedb_capnp.KeyRange.new_message()
+    range.start = b"test"
+    range.end = b"test_z"
+    result = await versedb.removeRange(range)
+    print("Removed range results:")
+    for pair in result.pairs:
+        print(f"  {pair.key} -> {pair.value}")
+
     # Test remove
     print("\nTesting remove...")
     await versedb.remove(key)

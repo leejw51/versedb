@@ -51,6 +51,29 @@ class VersedbImpl(versedb_capnp.Versedb.Server):
             pairs[i].key = key
             pairs[i].value = value
 
+    async def removeRange(self, range, _context, **kwargs):
+        """Remove key-value pairs within a range."""
+        print(f"➖ Removing range")
+        start = range.start
+        end = range.end
+
+        # Create a list of matching pairs before removal
+        matching_pairs = [
+            (key, value) for key, value in self.store.items() if start <= key <= end
+        ]
+
+        # Remove the matching pairs
+        for key, _ in matching_pairs:
+            del self.store[key]
+
+        # Initialize the list with the removed pairs
+        pairs = _context.results.init("pairs", len(matching_pairs))
+
+        # Fill in the pairs that were removed
+        for i, (key, value) in enumerate(matching_pairs):
+            pairs[i].key = key
+            pairs[i].value = value
+
     async def helloworld(self, input, _context, **kwargs):
         """Simple hello world method."""
         print(f"👋 Hello world request with input: {input}")
