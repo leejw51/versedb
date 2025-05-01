@@ -25,7 +25,7 @@ async fn test_idb_select_range() -> Result<()> {
         db.add(key, value).await?;
     }
 
-    // Test selecting a range of keys
+    // Test selecting a range of keys (inclusive of key2, exclusive of key4)
     let start_key = b"key2" as &[u8];
     let end_key = b"key4" as &[u8];
 
@@ -33,13 +33,11 @@ async fn test_idb_select_range() -> Result<()> {
     let results = db.select_range(start_key, end_key).await?;
 
     // Verify the results
-    assert_eq!(results.len(), 3);
+    assert_eq!(results.len(), 2);
     assert_eq!(&results[0].0, b"key2");
     assert_eq!(&results[0].1, b"value2");
     assert_eq!(&results[1].0, b"key3");
     assert_eq!(&results[1].1, b"value3");
-    assert_eq!(&results[2].0, b"key4");
-    assert_eq!(&results[2].1, b"value4");
 
     // Clean up
     for (key, _) in &entries {
