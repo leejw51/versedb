@@ -1,9 +1,9 @@
 use super::database::{Database, Result};
 use async_trait::async_trait;
 use rusqlite::{Connection, params};
+use std::cell::UnsafeCell;
 use std::error::Error;
 use std::sync::Mutex;
-use std::cell::UnsafeCell;
 
 pub struct SqliteDatabase {
     conn: UnsafeCell<Mutex<Connection>>,
@@ -100,17 +100,14 @@ impl Database for SqliteDatabase {
     async fn remove_range(&self, start: &[u8], end: &[u8]) -> Result<Vec<(Vec<u8>, Vec<u8>)>> {
         // First get all entries that will be removed
         let entries = self.select_range(start, end).await?;
-        
+
         // Then delete the range
         let conn = self.get_conn().lock().unwrap();
         conn.execute(
             "DELETE FROM kv_store WHERE key >= ? AND key < ?",
-            params![
-                String::from_utf8_lossy(start),
-                String::from_utf8_lossy(end)
-            ],
+            params![String::from_utf8_lossy(start), String::from_utf8_lossy(end)],
         )?;
-        
+
         Ok(entries)
     }
 

@@ -1,11 +1,11 @@
 use super::database::{Database, Result};
 use async_trait::async_trait;
 use serde_json::{Map, Value};
+use std::cell::UnsafeCell;
 use std::collections::BTreeMap;
 use std::error::Error;
 use std::fs;
 use std::path::Path;
-use std::cell::UnsafeCell;
 
 pub struct JsonDatabase {
     data: UnsafeCell<BTreeMap<Vec<u8>, Value>>,

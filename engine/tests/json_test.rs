@@ -52,7 +52,8 @@ async fn test_json_database_range_select() {
     db.add(b"c", b"3").await.unwrap();
     db.add(b"d", b"4").await.unwrap();
 
-    // Test range select
+    // Test range select (start-inclusive, end-exclusive)
+    // Selecting range ["b", "d") should return entries with keys "b" and "c" but not "d"
     let results = db.select_range(b"b", b"d").await.unwrap();
     assert_eq!(results.len(), 2);
     assert_eq!(results[0], (b"b".to_vec(), b"2".to_vec()));
@@ -88,7 +89,7 @@ async fn test_json_database_remove_range() {
     let path = temp_file.path().to_str().unwrap();
 
     let mut db = JsonDatabase::open(path).await.unwrap();
-    
+
     // Add entries with ordered keys
     let entries = vec![
         (b"key1", b"value1"),
@@ -102,10 +103,11 @@ async fn test_json_database_remove_range() {
         db.add(*key, *value).await.unwrap();
     }
 
-    // Test remove_range from key2 to key4 (inclusive of key2, exclusive of key4)
+    // Test remove_range from key2 to key4 (start-inclusive, end-exclusive)
+    // Removing range ["key2", "key4") should remove "key2" and "key3" but not "key4"
     let removed = db.remove_range(b"key2", b"key4").await.unwrap();
 
-    // Verify the removed entries
+    // Verify the removed entries (should be key2 and key3)
     assert_eq!(removed.len(), 2);
     assert!(removed.contains(&(b"key2".to_vec(), b"value2".to_vec())));
     assert!(removed.contains(&(b"key3".to_vec(), b"value3".to_vec())));
@@ -119,7 +121,7 @@ async fn test_json_database_remove_range() {
 
     // Test persistence after remove_range
     db.close().await.unwrap();
-    
+
     // Reopen and verify the changes persisted
     let db = JsonDatabase::open(path).await.unwrap();
     let all_entries = db.select_range(b"key1", b"key6").await.unwrap();

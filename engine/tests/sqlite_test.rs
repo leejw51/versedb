@@ -58,7 +58,7 @@ async fn test_sqlite_database_remove_range() {
 
     // Test open and add multiple entries
     let mut db = SqliteDatabase::open(path).await.unwrap();
-    
+
     // Add entries with ordered keys
     let entries = vec![
         ("key1", "value1"),
@@ -69,9 +69,7 @@ async fn test_sqlite_database_remove_range() {
     ];
 
     for (key, value) in &entries {
-        db.add(key.as_bytes(), value.as_bytes())
-            .await
-            .unwrap();
+        db.add(key.as_bytes(), value.as_bytes()).await.unwrap();
     }
 
     // Test remove_range from key2 to key4 (inclusive of key2, exclusive of key4)
@@ -97,10 +95,11 @@ async fn test_sqlite_database_remove_range() {
 
     // Test persistence after remove_range
     db.close().await.unwrap();
-    
+
     // Reopen and verify the changes persisted
     let db = SqliteDatabase::open(path).await.unwrap();
-    let all_entries = db.select_range("key1".as_bytes(), "key6".as_bytes())
+    let all_entries = db
+        .select_range("key1".as_bytes(), "key6".as_bytes())
         .await
         .unwrap();
     assert_eq!(all_entries.len(), 3);

@@ -20,6 +20,9 @@ async fn test_csv_database() {
     db.add("key2".as_bytes(), "value2".as_bytes())
         .await
         .unwrap();
+    db.add("key3".as_bytes(), "value3".as_bytes())
+        .await
+        .unwrap();
     db.close().await.unwrap();
 
     // Test reopen and select
@@ -34,7 +37,7 @@ async fn test_csv_database() {
     );
     assert_eq!(db.select("nonexistent".as_bytes()).await.unwrap(), None);
 
-    // Test select_range
+    // Test select_range (inclusive of key1, exclusive of key3)
     let mut db = CsvDatabase::open(path).await.unwrap();
     let range = db
         .select_range("key1".as_bytes(), "key3".as_bytes())
@@ -62,7 +65,7 @@ async fn test_csv_database_remove_range() {
 
     // Test open and add multiple entries
     let mut db = CsvDatabase::open(path).await.unwrap();
-    
+
     // Add entries with ordered keys
     let entries = vec![
         ("key1", "value1"),
@@ -73,9 +76,7 @@ async fn test_csv_database_remove_range() {
     ];
 
     for (key, value) in &entries {
-        db.add(key.as_bytes(), value.as_bytes())
-            .await
-            .unwrap();
+        db.add(key.as_bytes(), value.as_bytes()).await.unwrap();
     }
 
     // Test remove_range from key2 to key4 (inclusive of key2, exclusive of key4)

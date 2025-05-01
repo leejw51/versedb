@@ -69,19 +69,19 @@ impl Database for SledDatabase {
     async fn remove_range(&self, start: &[u8], end: &[u8]) -> Result<Vec<(Vec<u8>, Vec<u8>)>> {
         let range = self.get_db().range(start..end);
         let mut result = Vec::new();
-        
+
         // Collect all keys and values first since we can't modify while iterating
         for item in range {
             let (key, value) = item?;
             result.push((key.to_vec(), value.to_vec()));
         }
-        
+
         // Remove the collected keys
         let db = self.get_db_mut();
         for (key, _) in &result {
             db.remove(key)?;
         }
-        
+
         Ok(result)
     }
 

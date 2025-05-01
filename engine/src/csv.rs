@@ -1,11 +1,11 @@
 use super::database::{Database, Result};
 use async_trait::async_trait;
+use std::cell::UnsafeCell;
 use std::collections::HashMap;
 use std::error::Error;
 use std::fs::{File, OpenOptions};
 use std::io::{BufRead, BufReader, Write};
 use std::path::Path;
-use std::cell::UnsafeCell;
 
 pub struct CsvDatabase {
     path: String,
@@ -104,7 +104,7 @@ impl Database for CsvDatabase {
         let mut result = Vec::new();
         let start_vec = start.to_vec();
         let end_vec = end.to_vec();
-        
+
         // Collect keys to remove and their values
         let keys_to_remove: Vec<Vec<u8>> = self
             .get_data()
