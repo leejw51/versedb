@@ -62,7 +62,7 @@ jobs:
         make package
 
     - name: Upload Package Artifact
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: versedb-package
         path: upload/
@@ -76,7 +76,7 @@ jobs:
       contents: write
     steps:
     - name: Download Package Artifact
-      uses: actions/download-artifact@v3
+      uses: actions/download-artifact@v4
       with:
         name: versedb-package
         path: upload/
