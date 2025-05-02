@@ -65,3 +65,11 @@ tempfile = "3.10"
 
 [build-dependencies]
 capnpc = "0.21"
+
+[[bin]]
+name = "versedbclient"
+path = "src/bin/versedbclient.rs"
+
+[[bin]]
+name = "versedbserver"
+path = "src/bin/versedbserver.rs"
