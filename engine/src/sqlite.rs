@@ -7,6 +7,16 @@ use std::sync::Mutex;
 
 pub struct SqliteDatabase {
     conn: UnsafeCell<Mutex<Connection>>,
+    path: String,
+}
+
+impl Clone for SqliteDatabase {
+    fn clone(&self) -> Self {
+        Self {
+            conn: UnsafeCell::new(Mutex::new(Connection::open(&self.path).unwrap())),
+            path: self.path.clone(),
+        }
+    }
 }
 
 impl SqliteDatabase {
@@ -33,6 +43,7 @@ impl Database for SqliteDatabase {
 
         Ok(SqliteDatabase {
             conn: UnsafeCell::new(Mutex::new(conn)),
+            path: path.to_string(),
         })
     }
 

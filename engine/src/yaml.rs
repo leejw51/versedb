@@ -12,6 +12,15 @@ pub struct YamlDatabase {
     path: String,
 }
 
+impl Clone for YamlDatabase {
+    fn clone(&self) -> Self {
+        Self {
+            data: Mutex::new(self.data.lock().unwrap().clone()),
+            path: self.path.clone(),
+        }
+    }
+}
+
 #[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
 #[cfg_attr(not(target_arch = "wasm32"), async_trait)]
 impl Database for YamlDatabase {

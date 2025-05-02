@@ -1,4 +1,5 @@
 use crate::database::{Database, Result as DbResult};
+use crate::sled::SledDatabase;
 use crate::versedb_capnp::versedb;
 use capnp::Error;
 use capnp::capability::{Client, FromServer, Promise};
@@ -271,4 +272,20 @@ pub async fn run_server<T: Database + Clone + Send + Sync + 'static>(
             }
         })
         .await
+}
+
+#[tokio::main]
+#[cfg(not(target_arch = "wasm32"))]
+async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    // Create a CSV database
+    let db = SledDatabase::open("data.sled").await?;
+
+    // Run the server on localhost:8000 with the CSV database
+    run_server("127.0.0.1:8000", db).await?;
+    Ok(())
+}
+
+#[cfg(target_arch = "wasm32")]
+fn main() {
+    // Empty main function for wasm32 target
 }

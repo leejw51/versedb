@@ -7,6 +7,14 @@ pub struct SledDatabase {
     db: Mutex<Db>,
 }
 
+impl Clone for SledDatabase {
+    fn clone(&self) -> Self {
+        Self {
+            db: Mutex::new(self.db.lock().unwrap().clone()),
+        }
+    }
+}
+
 #[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
 #[cfg_attr(not(target_arch = "wasm32"), async_trait)]
 impl Database for SledDatabase {
