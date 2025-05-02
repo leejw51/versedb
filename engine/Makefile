@@ -46,6 +46,8 @@ testwasm32:
 package-native: release
 	@mkdir -p dist
 	@cp target/release/libversedb.* dist/
+	@cp target/release/versedbserver dist/
+	@cp target/release/versedbclient dist/
 	@zip -r versedb_$(DETECTED_OS)_$(TODAY).zip dist/
 	@rm -rf dist
 	@echo "Native package created: versedb_$(DETECTED_OS)_$(TODAY).zip"
