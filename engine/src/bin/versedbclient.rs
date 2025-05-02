@@ -1,6 +1,15 @@
+use clap::Parser;
 use std::io::{self, Write};
 #[cfg(not(target_arch = "wasm32"))]
 use versedb::client::connect;
+
+#[derive(Parser)]
+#[command(author, version, about, long_about = None)]
+struct Args {
+    /// Server address in the format host:port
+    #[arg(short, long, default_value = "127.0.0.1:8000")]
+    address: String,
+}
 
 async fn print_menu() {
     println!("\nVerseDB Interactive Client");
@@ -28,11 +37,12 @@ async fn get_input(prompt: &str) -> String {
 #[tokio::main]
 #[cfg(not(target_arch = "wasm32"))]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let args = Args::parse();
     let local = tokio::task::LocalSet::new();
 
     local
         .run_until(async move {
-            let client = connect("127.0.0.1:8000").await?;
+            let client = connect(&args.address).await?;
 
             loop {
                 print_menu().await;
