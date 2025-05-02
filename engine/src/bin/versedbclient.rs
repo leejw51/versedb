@@ -1,9 +1,14 @@
 use chrono::{Local, Utc};
 use clap::Parser;
+#[cfg(not(target_arch = "wasm32"))]
 use fake::faker::company::en::CompanyName;
+#[cfg(not(target_arch = "wasm32"))]
 use fake::faker::internet::en::FreeEmail;
+#[cfg(not(target_arch = "wasm32"))]
 use fake::faker::lorem::en::Sentence;
+#[cfg(not(target_arch = "wasm32"))]
 use fake::faker::name::en::{FirstName, LastName, Name};
+#[cfg(not(target_arch = "wasm32"))]
 use fake::{Fake, Faker};
 use std::io::{self, Write};
 #[cfg(not(target_arch = "wasm32"))]
