@@ -1,6 +1,6 @@
 use super::database::{Database, Result};
 use async_trait::async_trait;
-use std::collections::HashMap;
+use std::collections::BTreeMap;
 use std::error::Error;
 use std::fs::{File, OpenOptions};
 use std::io::{BufRead, BufReader, Write};
@@ -9,7 +9,7 @@ use std::sync::Mutex;
 
 pub struct CsvDatabase {
     path: String,
-    data: Mutex<HashMap<Vec<u8>, Vec<u8>>>,
+    data: Mutex<BTreeMap<Vec<u8>, Vec<u8>>>,
 }
 
 impl Clone for CsvDatabase {
@@ -25,7 +25,7 @@ impl Clone for CsvDatabase {
 #[cfg_attr(not(target_arch = "wasm32"), async_trait)]
 impl Database for CsvDatabase {
     async fn open(path: &str) -> Result<Self> {
-        let mut data = HashMap::new();
+        let mut data = BTreeMap::new();
 
         if Path::new(path).exists() {
             let file = File::open(path)?;

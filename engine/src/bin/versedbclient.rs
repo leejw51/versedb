@@ -1,4 +1,10 @@
+use chrono::{Local, Utc};
 use clap::Parser;
+use fake::faker::company::en::CompanyName;
+use fake::faker::internet::en::FreeEmail;
+use fake::faker::lorem::en::Sentence;
+use fake::faker::name::en::{FirstName, LastName, Name};
+use fake::{Fake, Faker};
 use std::io::{self, Write};
 #[cfg(not(target_arch = "wasm32"))]
 use versedb::client::connect;
@@ -21,6 +27,7 @@ async fn print_menu() {
     println!("5. Remove range");
     println!("6. Hello world");
     println!("7. Flush");
+    println!("11. Add many key-value pairs");
     println!("0. Exit");
     print!("\nEnter your choice: ");
     io::stdout().flush().unwrap();
@@ -104,6 +111,37 @@ async fn main() -> anyhow::Result<()> {
                     "7" => {
                         client.flush().await?;
                         println!("Database flushed successfully!");
+                    }
+                    "11" => {
+                        let category = get_input("Enter category: ").await;
+                        let start_num = get_input("Enter start number: ")
+                            .await
+                            .parse::<i32>()
+                            .unwrap_or(0);
+                        let end_num = get_input("Enter end number: ")
+                            .await
+                            .parse::<i32>()
+                            .unwrap_or(10);
+
+                        for i in start_num..=end_num {
+                            let name: String = Name().fake();
+                            let email: String = FreeEmail().fake();
+                            let company: String = CompanyName().fake();
+                            let description: String = Sentence(5..10).fake();
+
+                            let utc_time = Utc::now().to_rfc3339();
+                            let local_time = Local::now().to_rfc3339();
+
+                            let key = format!("{}:{:010}", category, i);
+                            let value = format!(
+                                "name:{}|email:{}|company:{}|desc:{}|UTC:{}|LOCAL:{}",
+                                name, email, company, description, utc_time, local_time
+                            );
+
+                            client.add(key.as_bytes(), value.as_bytes()).await?;
+                            println!("Added - Key: {}, Value: {}", key, value);
+                        }
+                        println!("Multiple key-value pairs with fake data added successfully!");
                     }
                     "0" => {
                         println!("Goodbye!");

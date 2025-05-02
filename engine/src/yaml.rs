@@ -1,14 +1,14 @@
 use super::database::{Database, Result};
 use async_trait::async_trait;
 use serde_yaml::{self, Value};
-use std::collections::HashMap;
+use std::collections::BTreeMap;
 use std::error::Error;
 use std::fs;
 use std::path::Path;
 use std::sync::Mutex;
 
 pub struct YamlDatabase {
-    data: Mutex<HashMap<Vec<u8>, Vec<u8>>>,
+    data: Mutex<BTreeMap<Vec<u8>, Vec<u8>>>,
     path: String,
 }
 
@@ -25,7 +25,7 @@ impl Clone for YamlDatabase {
 #[cfg_attr(not(target_arch = "wasm32"), async_trait)]
 impl Database for YamlDatabase {
     async fn open(path: &str) -> Result<Self> {
-        let mut data = HashMap::new();
+        let mut data = BTreeMap::new();
 
         if Path::new(path).exists() {
             let contents = fs::read_to_string(path)?;

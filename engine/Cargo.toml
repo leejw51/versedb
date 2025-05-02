@@ -44,6 +44,8 @@ hex = "0.4.3"
 yaml-rust2 = "0.10.1"
 bincode = "2.0.1"
 clap = { version = "4.5.37", features = ["derive"] }
+rand = "0.9.1"
+fake = "4.3.0"
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]
 getrandom = { version = "0.2.14", features = ["js"] }
