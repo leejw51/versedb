@@ -239,39 +239,48 @@ impl<T: Database + Clone + Send + Sync + 'static> versedb::Server for Arc<VerseD
 pub async fn run_server<T: Database + Clone + Send + Sync + 'static>(
     addr: &str,
     store: T,
-) -> Result<(), Box<dyn std::error::Error>> {
+) -> anyhow::Result<()> {
     let addr = addr
         .to_socket_addrs()?
         .next()
         .expect("could not parse address");
 
-    tokio::task::LocalSet::new()
+    let listener = tokio::net::TcpListener::bind(&addr).await?;
+    println!("Server listening on {}", addr);
+
+    let server = VerseDbServer::new(store);
+    let server = Arc::new(server);
+    let local = tokio::task::LocalSet::new();
+
+    local
         .run_until(async move {
-            let listener = tokio::net::TcpListener::bind(&addr).await?;
-            let versedb_server = Arc::new(VerseDbServer::new(store));
-            let versedb_client: versedb::Client = capnp_rpc::new_client(versedb_server);
+            let result: anyhow::Result<()> = async move {
+                loop {
+                    let (stream, _) = listener.accept().await?;
+                    stream.set_nodelay(true)?;
+                    let stream = tokio_util::compat::TokioAsyncReadCompatExt::compat(stream);
+                    let (reader, writer) = stream.split();
 
-            println!("VerseDB server listening on {}", addr);
+                    let rpc_network = Box::new(twoparty::VatNetwork::new(
+                        reader,
+                        writer,
+                        rpc_twoparty_capnp::Side::Server,
+                        Default::default(),
+                    ));
 
-            loop {
-                let (stream, _) = listener.accept().await?;
-                stream.set_nodelay(true)?;
-                let (reader, writer) =
-                    tokio_util::compat::TokioAsyncReadCompatExt::compat(stream).split();
-                let network = twoparty::VatNetwork::new(
-                    futures::io::BufReader::new(reader),
-                    futures::io::BufWriter::new(writer),
-                    rpc_twoparty_capnp::Side::Server,
-                    Default::default(),
-                );
+                    let server = server.clone();
+                    let client: versedb::Client = capnp_rpc::new_client(server);
+                    let rpc_system = RpcSystem::new(rpc_network, Some(client.client));
 
-                let rpc_system =
-                    RpcSystem::new(Box::new(network), Some(versedb_client.clone().client));
-
-                tokio::task::spawn_local(rpc_system);
+                    tokio::task::spawn_local(rpc_system);
+                }
             }
+            .await;
+            result
         })
-        .await
+        .await?;
+
+    Ok(())
 }
 
 #[tokio::main]

@@ -19,16 +19,16 @@ struct Args {
     #[arg(short, long, default_value = "127.0.0.1:8000")]
     address: String,
 
-    #[arg(short, long, default_value = "csv,json,sqlite,yaml,sled,memory")]
+    #[arg(long, default_value = "csv", help = "csv,json,sqlite,yaml,sled,memory")]
     dbtype: String,
 
-    #[arg(short, long, default_value = "data.csv")]
+    #[arg(long, default_value = "data.csv")]
     dbpath: String,
 }
 
 #[tokio::main]
 #[cfg(not(target_arch = "wasm32"))]
-async fn main() -> Result<(), Box<dyn std::error::Error>> {
+async fn main() -> anyhow::Result<()> {
     let args = Args::parse();
 
     match args.dbtype.as_str() {

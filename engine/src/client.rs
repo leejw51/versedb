@@ -1,4 +1,5 @@
 use crate::versedb_capnp::versedb;
+use anyhow;
 use capnp::Error;
 use capnp::capability::Promise;
 use capnp_rpc::{RpcSystem, rpc_twoparty_capnp, twoparty};
@@ -49,7 +50,7 @@ pub struct VerseDbClient {
     client: versedb::Client,
 }
 
-pub async fn connect(addr: &str) -> Result<VerseDbClient, Box<dyn std::error::Error>> {
+pub async fn connect(addr: &str) -> anyhow::Result<VerseDbClient> {
     let addr = addr
         .to_socket_addrs()?
         .next()

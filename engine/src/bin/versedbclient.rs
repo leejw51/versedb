@@ -36,7 +36,7 @@ async fn get_input(prompt: &str) -> String {
 
 #[tokio::main]
 #[cfg(not(target_arch = "wasm32"))]
-async fn main() -> Result<(), Box<dyn std::error::Error>> {
+async fn main() -> anyhow::Result<()> {
     let args = Args::parse();
     let local = tokio::task::LocalSet::new();
 
