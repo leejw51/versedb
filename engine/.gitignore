@@ -2,6 +2,7 @@ time_records_db/
 big_data_db/
 big_data_db_new/
 time_records_db/
+rocksdb_time_records/
 category_db/
 books_db.json
 books.csv

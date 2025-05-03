@@ -55,6 +55,7 @@ fake = "4.3.0"
 rusqlite = { version = "0.35.0", features = ["bundled"] }
 capnp-rpc = "0.21"
 tokio = { version = "1.36", features = ["full"] }
+rocksdb = "0.23.0"
 tokio-util = { version = "0.7", features = ["compat"] }
 
 [features]

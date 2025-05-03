@@ -7,6 +7,8 @@ pub mod idb;
 pub mod json;
 pub mod memory;
 #[cfg(not(target_arch = "wasm32"))]
+pub mod rocksdb;
+#[cfg(not(target_arch = "wasm32"))]
 pub mod server;
 #[cfg(not(target_arch = "wasm32"))]
 pub mod sled;
@@ -16,6 +18,8 @@ pub mod yaml;
 #[cfg(not(target_arch = "wasm32"))]
 pub use client::VerseDbClient;
 pub use database::Database;
+#[cfg(not(target_arch = "wasm32"))]
+pub use rocksdb::RocksDbDatabase;
 #[cfg(not(target_arch = "wasm32"))]
 pub use server::VerseDbServer;
 
