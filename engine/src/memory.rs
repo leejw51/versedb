@@ -1,10 +1,10 @@
 use super::database::{Database, Result};
 use async_trait::async_trait;
-use std::collections::HashMap;
+use std::collections::BTreeMap;
 use std::sync::Mutex;
 
 pub struct MemoryDatabase {
-    data: Mutex<HashMap<Vec<u8>, Vec<u8>>>,
+    data: Mutex<BTreeMap<Vec<u8>, Vec<u8>>>,
 }
 
 impl Clone for MemoryDatabase {
@@ -20,7 +20,7 @@ impl Clone for MemoryDatabase {
 impl Database for MemoryDatabase {
     async fn open(_path: &str) -> Result<Self> {
         Ok(Self {
-            data: Mutex::new(HashMap::new()),
+            data: Mutex::new(BTreeMap::new()),
         })
     }
 
