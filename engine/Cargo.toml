@@ -44,6 +44,7 @@ hex = "0.4.3"
 yaml-rust2 = "0.10.1"
 bincode = "2.0.1"
 clap = { version = "4.5.37", features = ["derive"] }
+flexbuffers = { version = "25.2", features = ["serialize_human_readable", "deserialize_human_readable"] }
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]
 getrandom = { version = "0.2.14", features = ["js"] }
